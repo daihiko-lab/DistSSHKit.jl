@@ -82,7 +82,7 @@ end
 
 ## 現状で切り出しを難しくしているもの
 
-1. **シングルリポジトリ前提**: `setup.jl` はプロジェクトルートが既知のリモートからクローンされた git リポジトリであることを前提にしている。リモート URL はマスターの `git remote get-url origin` から読まれてワーカーに複製される。独立パッケージなら、デプロイ対象プロジェクトをより一般的に指定できる仕組みが必要。
+1. **デプロイ先がローカル `origin` 中心だった**: ~~`setup.jl` は既知リモートからクローンされた git リポジトリ前提~~。一部解消済み: **`--repo URL`** で clone 元を上書き、**`--remote-path`** / **`DISTRIBUTED_REMOTE_PROJECT_ROOT`** でリモート配置先を上書き (既定は従来どおり `~/親/名前`)。push/pull は引き続きローカル checkout の remote を使う。
 
 2. **`Project.toml` ベースのパッケージロード**: 既定はルートの `name` だが、**`--package NAME`** で上書きできる。将来の独立パッケージ化では、このフラグを主 API に据える余地がある。
 
@@ -93,11 +93,11 @@ end
 ## 分離手順 (時が来たら)
 
 1. ~~**共有コードをモジュールに集約**~~ — 完了 (`src/ParallelRunnerKit.jl`)
-2. **`setup.jl` を一般化** し、ローカルの git config から読むのではなく任意のリモート URL を受け付ける
+2. ~~**`setup.jl` を一般化**~~ — 完了 (`--repo`、`--remote-path` / `DISTRIBUTED_REMOTE_PROJECT_ROOT`)
 3. **`init_output_dir!` / `main()` インターフェースを公開 API として明文化** (軽量な abstract interface か、ドキュメントだけでもよい)
 4. **`DistributedRunner.jl` として登録** (もしくは研究室内利用なら未登録のままでもよい)
 
-すでにリポジトリ内にあるもの: **`src/ParallelRunnerKit.jl`** (正式モジュール)、**`Project.toml`** (依存マニフェスト)、**`templates/script_template.jl`**、**`runner.jl --package`**。
+すでにリポジトリ内にあるもの: **`src/ParallelRunnerKit.jl`** (正式モジュール)、**`Project.toml`** (依存マニフェスト)、**`templates/script_template.jl`**、**`runner.jl --package`**、**`setup.jl --repo` / `--remote-path`**。
 
 ## バージョン管理と再現性
 
@@ -105,7 +105,7 @@ end
 
 - **`ParallelRunnerKit/Project.toml` の `version`** がキットのセマンティックバージョン。 **`parallel_runner_kit_version()`** / **`PARALLEL_RUNNER_KIT_VERSION`** として公開され、**`runner.jl`** 起動時に解決したアプリ側 **`Project.toml`** とあわせてログに出る。
 - **`runner.jl`** はアプリ側プロジェクトディレクトリ (ワーカーが `activate` する環境) の **git 短縮ハッシュ** をログに出す。リモート追加前でもログとコミットを対応づけやすい。
-- **リモート利用時**は従来どおり **`check_git_hashes`** が **`DISTRIBUTED_PROJECT_ROOT`** (既定はリポジトリルート) 基準で **完全同一コミット** を要求する (**`--skip-hash-check`** で無効化可能)。
+- **リモート利用時**は従来どおり **`check_git_hashes`** が SSH ワーカー利用時に **完全同一コミット** を要求する (**`--skip-hash-check`** で無効化可能)。ローカル側は **`DISTRIBUTED_PROJECT_ROOT`** (既定はリポジトリルート)、リモート側は **`DISTRIBUTED_REMOTE_PROJECT_ROOT`** があればそれを使い、なければローカルと同じ絶対パス (従来の同一パス前提)。
 
 **あとから厳しくする候補:**
 

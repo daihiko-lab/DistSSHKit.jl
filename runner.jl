@@ -75,6 +75,7 @@ See also: ParallelRunnerKit/setup.jl, ParallelRunnerKit/README.md
 
 using Distributed
 using Dates
+using Pkg
 
 include(joinpath(@__DIR__, "src", "ParallelRunnerKit.jl"))
 using .ParallelRunnerKit
@@ -189,10 +190,10 @@ function runner_main()
         exit(0)
     end
 
-    if parsed.collect_root !== nothing
+    if parsed.collect_root !== nothing && parsed.collect_hosts !== nothing
         ok = runner_collect_tree(
-            parsed.collect_root,
-            parsed.collect_hosts;
+            parsed.collect_root::String,
+            parsed.collect_hosts::Vector{String};
             merge=something(parsed.collect_overwrite, false),
         )
         exit(ok ? 0 : 1)
@@ -205,7 +206,7 @@ function runner_main()
 
     hosts = parsed.hosts  # Vector of (host, workers) tuples
     root_disp = abspath(expanduser(String(PROJECT_ROOT)))  # anchor for human-readable paths in logs
-    script_path = parsed.script_path
+    script_path = parsed.script_path::String
     script_args = parsed.script_args
     local_workers = parsed.local_workers
     default_workers = parsed.default_workers
@@ -379,15 +380,20 @@ function runner_main()
         # Use: explicit host:N > --workers N > default 1
         host_workers = something(host_workers_spec, default_workers, 1)
         
+        # When DISTRIBUTED_REMOTE_PROJECT_ROOT is set, map cwd / --project to the remote tree.
+        repo_ra = abspath(expanduser(String(PROJECT_ROOT)))
+        remote_dir = remote_path_for_ssh_collect(script_dir, repo_ra)
+        remote_proj = remote_path_for_ssh_collect(proj_dir, repo_ra)
+
         write_both("$host_name ($host_workers workers): ")
         try
             addprocs([(host_name, host_workers)];
                      exename=`$host_julia`,
                      sshflags=sshflags_cmd,
-                     dir=script_dir,
+                     dir=remote_dir,
                      tunnel=true,
                      topology=:master_worker,
-                     exeflags=`--project=$proj_dir`)
+                     exeflags=`--project=$remote_proj`)
             print_ok("✓")
             writeln_both("")
             push!(successful_hosts, host_name)
@@ -572,7 +578,7 @@ function runner_main()
         # Final verification: test that all workers can run a simple computation
         write_both("  Verifying workers... ")
         flush(stdout)
-        test_results = pmap(w -> (myid(), 1 + 1), workers())
+        test_results = pmap(_ -> (myid(), 1 + 1), workers())
         working_count = count(r -> r[2] == 2, test_results)
         print_ok("✓ ($working_count workers verified)")
         writeln_both("")
@@ -668,7 +674,11 @@ function runner_main()
     run_script = () -> begin
         Base.invokelatest() do
             if isdefined(Main, :main)
-                Main.main()
+                main_fn = getfield(Main, :main)
+                if main_fn isa Function
+                    # Script `main` is only defined after `include`; hide from static analysis.
+                    Base.invokelatest(Base.inferencebarrier(main_fn))
+                end
             end
         end
     end

@@ -10,22 +10,16 @@ module ParallelRunnerKit
 
 using Dates
 
-export short_path, display_path, project_package_name, resolve_pkg_project_dir
-export parallel_runner_kit_version, PARALLEL_RUNNER_KIT_VERSION
-export OUTPUT_WIDTH, LOG_FILE_HANDLE
-export write_both, writeln_both, init_log_file, close_log_file
-export TeeIO
-export print_separator, print_header
-export use_colors
-export print_ok, print_err, print_info, print_warn
-export ok, fail, warn
-export SSH_OPTS, build_ssh_opts, detect_julia_path
-export get_local_git_hash, get_remote_git_hash
-export get_remote_total_gb, get_remote_nproc, get_local_resources
-export parse_runner_args, runner_help_text, check_memory_capacity, check_git_hashes
-export remote_path_for_ssh_collect
-export collect_tree_remote_files_ssh
-export distributed_collect_root_dirs
+export LOG_FILE_HANDLE, OUTPUT_WIDTH, PARALLEL_RUNNER_KIT_VERSION, SSH_OPTS, TeeIO
+export build_ssh_opts, check_git_hashes, check_memory_capacity, clone_url_from_local_origin
+export close_log_file, collect_tree_remote_files_ssh, default_remote_project_path, detect_julia_path
+export display_path, distributed_collect_root_dirs, fail, get_local_git_hash, get_local_resources
+export get_remote_git_hash, get_remote_nproc, get_remote_total_gb, init_log_file
+export normalize_git_clone_url, ok, parallel_runner_kit_version, parse_runner_args
+export print_err, print_header, print_info, print_ok, print_separator, print_warn
+export project_package_name, remote_path_for_ssh_collect, resolve_pkg_project_dir
+export resolve_remote_project_root, runner_help_text, short_path, use_colors, warn
+export write_both, writeln_both
 
 # =============================================================================
 # Path Helpers
@@ -66,7 +60,9 @@ function project_package_name(proj_dir::AbstractString)::Union{Nothing,String}
     isfile(path) || return nothing
     try
         m = match(r"name\s*=\s*\"([^\"]+)\"", read(path, String))
-        return m === nothing ? nothing : String(m.captures[1])
+        m === nothing && return nothing
+        cap = m.captures[1]
+        return cap isa AbstractString ? String(cap) : nothing
     catch
         return nothing
     end
@@ -107,7 +103,8 @@ function _project_toml_version(path::AbstractString)::Union{Nothing,VersionNumbe
     try
         m = match(r"version\s*=\s*\"([^\"]+)\"", read(p, String))
         m === nothing && return nothing
-        return VersionNumber(String(m.captures[1]))
+        cap = m.captures[1]
+        return cap isa AbstractString ? VersionNumber(String(cap)) : nothing
     catch
         return nothing
     end
@@ -180,23 +177,26 @@ end
 """IO that writes to both primary (e.g. stdout) and secondary (e.g. log file).
 For secondary: line-buffered — only complete lines are written. Progress bar
 updates (\\r overwrites) are not written to log, avoiding bloat."""
-mutable struct TeeIO <: IO
-    primary::IO
-    secondary::Union{IO,Nothing}
+mutable struct TeeIO{P<:IO,S<:Union{IO,Nothing}} <: IO
+    primary::P
+    secondary::S
     linebuf::Vector{UInt8}
 end
 
-TeeIO(primary::IO, secondary::Union{IO,Nothing}) = TeeIO(primary, secondary, UInt8[])
+function TeeIO(primary::IO, secondary::Union{IO,Nothing})
+    TeeIO{typeof(primary),typeof(secondary)}(primary, secondary, UInt8[])
+end
 
 function Base.write(io::TeeIO, b::UInt8)
     write(io.primary, b)
-    if io.secondary !== nothing
+    sec = io.secondary
+    if sec isa IO
         if b == 0x0d          # \r — discard (progress-bar overwrite)
             empty!(io.linebuf)
         elseif b == 0x0a      # \n — flush complete line to log
-            write(io.secondary, io.linebuf)
-            write(io.secondary, b)
-            flush(io.secondary)
+            write(sec, io.linebuf)
+            write(sec, b)
+            flush(sec)
             empty!(io.linebuf)
         else
             push!(io.linebuf, b)
@@ -207,14 +207,15 @@ end
 
 function Base.write(io::TeeIO, b::AbstractVector{UInt8})
     write(io.primary, b)
-    if io.secondary !== nothing
+    sec = io.secondary
+    if sec isa IO
         for x in b
             if x == 0x0d
                 empty!(io.linebuf)
             elseif x == 0x0a
-                write(io.secondary, io.linebuf)
-                write(io.secondary, x)
-                flush(io.secondary)
+                write(sec, io.linebuf)
+                write(sec, x)
+                flush(sec)
                 empty!(io.linebuf)
             else
                 push!(io.linebuf, x)
@@ -226,9 +227,10 @@ end
 
 function Base.flush(io::TeeIO)
     flush(io.primary)
-    if io.secondary !== nothing && !isempty(io.linebuf)
-        write(io.secondary, io.linebuf)
-        flush(io.secondary)
+    sec = io.secondary
+    if sec isa IO && !isempty(io.linebuf)
+        write(sec, io.linebuf)
+        flush(sec)
     end
     nothing
 end
@@ -504,11 +506,19 @@ function check_git_hashes(hosts::Vector{String}, proj_dir::String)
         return true, String[]
     end
 
+    # Prefer DISTRIBUTED_REMOTE_PROJECT_ROOT when set; otherwise keep legacy
+    # identical-absolute-path checks (setup.jl defaults to ~/Parent/Name separately).
+    env_remote = strip(get(ENV, "DISTRIBUTED_REMOTE_PROJECT_ROOT", ""))
+    remote_root = isempty(env_remote) ? String(proj_dir) : env_remote
+
     writeln_both("  Local: $(local_hash[1:8])...")
+    if !isempty(env_remote)
+        writeln_both("  Remote project root: $remote_root")
+    end
 
     mismatches = String[]
     for host in hosts
-        remote_hash = get_remote_git_hash(host, proj_dir)
+        remote_hash = get_remote_git_hash(host, remote_root)
         if remote_hash === nothing
             write_both("  $host: ")
             print_warn("⚠ Could not get git hash")
@@ -557,7 +567,7 @@ function collect_tree_remote_files_ssh(host::AbstractString, remote_root::Abstra
     catch
         return Tuple{String,String}[]
     end
-    sep = endswith(rr, '/') ? rr : rr * '/'
+    sep = endswith(rr, "/") ? rr : (rr * "/")
     pairs = Tuple{String,String}[]
     for line in split(out, '\n')
         p = String(strip(line))
@@ -585,12 +595,71 @@ function local_dir_from_remote_mirror(
 end
 
 """
+Default remote layout used by `setup.jl` when paths are not overridden:
+`~/basename(parent)/basename(local_project_root)` (tilde for remote-shell expansion).
+"""
+function default_remote_project_path(local_project_root::AbstractString)::String
+    root = String(abspath(expanduser(String(local_project_root))))
+    return joinpath("~", basename(dirname(root)), basename(root))
+end
+
+"""
+Resolve the repository root path **on SSH worker hosts** for setup / git checks.
+
+Priority:
+1. `cli_override` if non-empty (e.g. `setup.jl --remote-path`)
+2. `ENV["DISTRIBUTED_REMOTE_PROJECT_ROOT"]` if set (prefer an absolute path on the remote;
+   `~` is OK for setup SSH shell commands, but runner collect remapping expands `~` locally)
+3. `default_remote_project_path(local_project_root)`
+
+Does not force `abspath` on tilde paths so remote shells can expand `~` per host.
+"""
+function resolve_remote_project_root(
+    local_project_root::AbstractString;
+    cli_override::Union{Nothing,AbstractString}=nothing,
+)::String
+    if cli_override !== nothing
+        s = strip(String(cli_override))
+        !isempty(s) && return s
+    end
+    env = strip(get(ENV, "DISTRIBUTED_REMOTE_PROJECT_ROOT", ""))
+    !isempty(env) && return env
+    return default_remote_project_path(local_project_root)
+end
+
+"""Convert `https://github.com/...` clone URLs to SSH; leave other URLs unchanged."""
+function normalize_git_clone_url(url::AbstractString)::String
+    origin_url = strip(String(url))
+    m = match(r"https://github\.com/(.+)", origin_url)
+    if m !== nothing
+        cap = m.captures[1]
+        return cap isa AbstractString ? ("git@github.com:" * String(cap)) : origin_url
+    end
+    return origin_url
+end
+
+"""Read `origin` from `proj_dir` and return a clone URL (HTTPS GitHub → SSH). `nothing` on failure."""
+function clone_url_from_local_origin(proj_dir::AbstractString)::Union{Nothing,String}
+    resolved = String(abspath(expanduser(String(proj_dir))))
+    try
+        origin_url = strip(read(Cmd(["git", "-C", resolved, "remote", "get-url", "origin"]), String))
+        isempty(origin_url) && return nothing
+        return normalize_git_clone_url(origin_url)
+    catch
+        return nothing
+    end
+end
+
+"""
 Absolute path to use on SSH worker hosts for `find` / rsync source / sentinel.
 
 When `DISTRIBUTED_REMOTE_PROJECT_ROOT` is unset, returns `local_abs_dir` (legacy: identical paths everywhere).
 
 When set, `local_application_repo_root` must prefix `local_abs_dir`; the suffix is appended under the remote root.
 Paths must lie under the application repo root on this machine (otherwise falls back to `local_abs_dir`).
+
+Note: `expanduser` runs on this machine. Set `DISTRIBUTED_REMOTE_PROJECT_ROOT` to an **absolute**
+path on the remote (not `~/...`) when using collect / `addprocs` remapping.
 """
 function remote_path_for_ssh_collect(
     local_abs_dir::AbstractString,
@@ -856,6 +925,7 @@ Environment:
   DISTRIBUTED_OUTPUT_DIR          Output dir set by distributed scripts (runner log default + legacy single-tree rsync)
   DISTRIBUTED_COLLECT_DIRS        Colon-separated local abs or repo-relative dirs to rsync after runs (overrides single-tree default)
   DISTRIBUTED_REMOTE_PROJECT_ROOT If workers clone the repo elsewhere: absolute path to repo root **on SSH hosts**
+                                  (setup.jl, git hash checks, addprocs dir/--project, collect / sentinel)
 
 Prerequisites:
   - SSH key authentication to remote hosts

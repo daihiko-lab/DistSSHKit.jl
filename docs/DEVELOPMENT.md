@@ -92,11 +92,11 @@ the experiment scripts. It must be kept stable if `ParallelRunnerKit/` is extrac
 
 ## What makes extraction hard right now
 
-1. **Single-repo assumption**: `setup.jl` assumes the project root is a git
-   repo cloned from a known remote. The remote URL is read from
-   `git remote get-url origin` on the master and replicated to workers. A
-   standalone package would need a more general way to specify the project
-   to deploy.
+1. **Deploy target was local-`origin`-centric**: ~~`setup.jl` assumed the project root is a git
+   repo cloned from a known remote.~~ Partially addressed: **`--repo URL`** overrides clone
+   source; **`--remote-path`** / **`DISTRIBUTED_REMOTE_PROJECT_ROOT`** override the remote
+   checkout location (default remains `~/Parent/Name`). Push/pull still use the local
+   checkout’s remotes.
 
 2. **`Project.toml`-based package loading**: `runner.jl` loads the project's
    main package by default from the root `name` field, with **`--package NAME`**
@@ -111,15 +111,14 @@ the experiment scripts. It must be kept stable if `ParallelRunnerKit/` is extrac
 ## Proposed extraction steps (when the time comes)
 
 1. ~~**Consolidate shared code in a module**~~ — done (`src/ParallelRunnerKit.jl`).
-2. **Generalise `setup.jl`** so it accepts an arbitrary remote URL instead
-   of reading from the local git config.
+2. ~~**Generalise `setup.jl`** so it accepts an arbitrary remote URL~~ — done (`--repo`, `--remote-path` / `DISTRIBUTED_REMOTE_PROJECT_ROOT`).
 3. **Stabilise the `init_output_dir!` / `main()` interface** as a documented
    public API (consider a lightweight abstract interface, or just
    documentation).
 4. **Register as `DistributedRunner.jl`** (or keep unregistered for
    lab-internal use).
 
-Already in-tree: **`src/ParallelRunnerKit.jl`** (proper module), **`Project.toml`** (dep manifest for merging), **`templates/script_template.jl`** (minimal driver), **`runner.jl --package NAME`** (worker module override).
+Already in-tree: **`src/ParallelRunnerKit.jl`** (proper module), **`Project.toml`** (dep manifest for merging), **`templates/script_template.jl`** (minimal driver), **`runner.jl --package NAME`** (worker module override), **`setup.jl --repo` / `--remote-path`**.
 
 ## Versioning and reproducibility
 
@@ -127,7 +126,7 @@ Already in-tree: **`src/ParallelRunnerKit.jl`** (proper module), **`Project.toml
 
 - **`ParallelRunnerKit/Project.toml` `version`** is the kit’s semantic version. It is exposed as **`parallel_runner_kit_version()`** / **`PARALLEL_RUNNER_KIT_VERSION`** and printed at **`runner.jl`** startup next to the resolved application **`Project.toml`** path.
 - **`runner.jl`** logs a **short git hash** for the **application** project directory (the env workers activate), so logs tie a run to a code revision even before remotes are involved.
-- **Remote hosts:** existing **`check_git_hashes`** still enforces **full commit equality** against **`DISTRIBUTED_PROJECT_ROOT`** (default: repo root) when any SSH workers are used (unless **`--skip-hash-check`**).
+- **Remote hosts:** existing **`check_git_hashes`** still enforces **full commit equality** when any SSH workers are used (unless **`--skip-hash-check`**). Local side uses **`DISTRIBUTED_PROJECT_ROOT`** (default: repo root); remote side uses **`DISTRIBUTED_REMOTE_PROJECT_ROOT`** when set, otherwise the same absolute path as local (legacy identical-path layout).
 
 **Stricter controls to consider later:**
 

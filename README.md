@@ -91,8 +91,8 @@ ParallelRunnerKit/runner.jl [--local N] [host1:W host2:W ...] script.jl [args...
 
 - **macOS:** Local machine (and typical remotes) are expected to be **macOS**; this is the only platform we exercise in development.
 - **SSH key authentication** to all remote hosts (password-less login)
-- **GitHub SSH access** from all remote hosts (verify with `ssh -T git@github.com`)
-- **Same project path** on every machine (e.g. `~/projects/MySimulation.jl`)
+- **Git remote access** from all remote hosts (for GitHub: `ssh -T git@github.com`)
+- **Same project layout** on remotes by default (`~/Parent/RepoName` after `setup.jl --clone`), or a custom root via **`--remote-path`** / **`DISTRIBUTED_REMOTE_PROJECT_ROOT`** (set the ENV for `runner.jl` as well when paths differ)
 - **Julia installed** on remote hosts (auto-detected in common locations)
 
 ## Quick Start
@@ -171,7 +171,7 @@ julia --project=. ParallelRunnerKit/runner.jl --collect-overwrite data/sweep m4-
 |----------|-------------|
 | `DISTRIBUTED_OUTPUT_DIR` | Output dir during distributed runs (default runner log dir + fallback when collect dirs unset) |
 | `DISTRIBUTED_COLLECT_DIRS` | Colon-separated local trees to rsync after the script (abs or repo-relative); overrides the single-tree default |
-| `DISTRIBUTED_REMOTE_PROJECT_ROOT` | Absolute repo root **on SSH worker hosts** when it differs from this machine (collect / sentinel rsync use repo-relative suffix) |
+| `DISTRIBUTED_REMOTE_PROJECT_ROOT` | Absolute repo root **on SSH worker hosts** when it differs from this machine (`setup.jl`, git checks, `addprocs` `--project`/`dir`, collect / sentinel rsync) |
 | `DISTRIBUTED_SSH_OPTS` | Custom SSH options (space-separated) |
 | `JULIA_DISTRIBUTED_EXE` | Default Julia path for remote hosts |
 | `DISTRIBUTED_INIT_DELAY_SEC` | Connection-stabilisation wait after `addprocs` (sec, default: 5) |
@@ -189,7 +189,20 @@ julia --project=. ParallelRunnerKit/setup.jl --pull host1 host2        # Pull la
 julia --project=. ParallelRunnerKit/setup.jl --instantiate host1 host2 # Pkg.instantiate
 julia --project=. ParallelRunnerKit/setup.jl --cleanup host1 host2     # Kill stale workers
 julia --project=. ParallelRunnerKit/setup.jl --delete host1 host2      # Delete remote repositories
+
+# Optional: explicit clone URL and/or remote checkout path
+julia --project=. ParallelRunnerKit/setup.jl \
+  --repo git@github.com:ORG/MyApp.jl.git \
+  --remote-path /Users/shared/MyApp.jl \
+  --clone host1 host2
+export DISTRIBUTED_REMOTE_PROJECT_ROOT=/Users/shared/MyApp.jl   # keep runner.jl in sync
 ```
+
+| Option / variable | Description |
+|-------------------|-------------|
+| `--repo URL` | Clone URL (default: local `origin`; HTTPS GitHub → SSH) |
+| `--remote-path PATH` | Repo root on remotes (default: `~/Parent/Name`, or `DISTRIBUTED_REMOTE_PROJECT_ROOT`) |
+| `DISTRIBUTED_REMOTE_PROJECT_ROOT` | Same remote root for setup and `runner.jl` (prefer an absolute path on the remote) |
 
 ## Notes
 

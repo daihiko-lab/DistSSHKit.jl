@@ -93,8 +93,8 @@ ParallelRunnerKit/runner.jl [--local N] [host1:W host2:W ...] script.jl [args...
 
 - **macOS:** ローカル (および想定するリモート) は **macOS** を前提とする。開発で触るのはこの環境のみ。
 - 全リモートホストへの **SSH 鍵認証** (パスワードなしログイン)
-- 全リモートホストからの **GitHub SSH アクセス** (`ssh -T git@github.com` で確認)
-- 全マシンで **同じプロジェクトパス** (例: `~/projects/MySimulation.jl`)
+- 全リモートホストからの **Git リモートアクセス** (GitHub なら `ssh -T git@github.com` で確認)
+- リモート上の **同じリポジトリ配置** が既定 (`setup.jl --clone` 後は `~/親ディレクトリ/リポ名`)。違う場所に置く場合は **`--remote-path`** / **`DISTRIBUTED_REMOTE_PROJECT_ROOT`** (パスが違うときは `runner.jl` 用にも同じ ENV を設定)
 - リモートホストに **Julia がインストール済み** (一般的な場所を自動検出)
 
 ## クイックスタート
@@ -173,7 +173,7 @@ julia --project=. ParallelRunnerKit/runner.jl --collect-overwrite data/sweep m4-
 |----------|-------------|
 | `DISTRIBUTED_OUTPUT_DIR` | 分散実行時の出力ディレクトリ (既定のランナーログ先・収集ルート未指定時の単一ツリー既定) |
 | `DISTRIBUTED_COLLECT_DIRS` | ラン終了後に rsync するローカルツリー (コロン区切り、絶対パスまたはリポジトリ相対)。指定時は単一ツリー既定を上書き |
-| `DISTRIBUTED_REMOTE_PROJECT_ROOT` | SSH ワーカー上のリポジトリルートの絶対パス (このマシンと違うときに指定; collect / sentinel の rsync がルート相対で合わせる) |
+| `DISTRIBUTED_REMOTE_PROJECT_ROOT` | SSH ワーカー上のリポジトリルートの絶対パス (このマシンと違うときに指定; `setup.jl`・git 確認・`addprocs` の `--project`/`dir`・collect / sentinel の rsync で共有) |
 | `DISTRIBUTED_SSH_OPTS` | カスタム SSH オプション (スペース区切り) |
 | `JULIA_DISTRIBUTED_EXE` | リモートホストのデフォルト Julia パス |
 | `DISTRIBUTED_INIT_DELAY_SEC` | `addprocs` 後の接続安定化待ち (秒、デフォルト: 5) |
@@ -191,7 +191,20 @@ julia --project=. ParallelRunnerKit/setup.jl --pull host1 host2        # 最新�
 julia --project=. ParallelRunnerKit/setup.jl --instantiate host1 host2 # Pkg.instantiate
 julia --project=. ParallelRunnerKit/setup.jl --cleanup host1 host2     # 残骸ワーカーを kill
 julia --project=. ParallelRunnerKit/setup.jl --delete host1 host2      # リモートのリポジトリを削除
+
+# 任意: clone URL やリモート上の配置パスを明示
+julia --project=. ParallelRunnerKit/setup.jl \
+  --repo git@github.com:ORG/MyApp.jl.git \
+  --remote-path /Users/shared/MyApp.jl \
+  --clone host1 host2
+export DISTRIBUTED_REMOTE_PROJECT_ROOT=/Users/shared/MyApp.jl   # runner.jl と揃える
 ```
+
+| オプション / 変数 | 説明 |
+|-------------------|------|
+| `--repo URL` | clone 元 URL (既定: ローカルの `origin`; HTTPS の GitHub は SSH に変換) |
+| `--remote-path PATH` | リモート上のリポジトリルート (既定: `~/親/名前`、または `DISTRIBUTED_REMOTE_PROJECT_ROOT`) |
+| `DISTRIBUTED_REMOTE_PROJECT_ROOT` | setup と `runner.jl` で共有するリモート側ルート (リモート上の絶対パス推奨) |
 
 ## 注意
 

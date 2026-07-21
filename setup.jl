@@ -9,16 +9,17 @@ Usage:
   julia --project=. ParallelRunnerKit/setup.jl --check hosts...   # Check prerequisites
   julia --project=. ParallelRunnerKit/setup.jl --pull hosts...    # Pull on all hosts
   julia --project=. ParallelRunnerKit/setup.jl --sync hosts...    # Push + pull
+
+Optional overrides:
+  --repo URL              Clone URL (default: local `origin`, HTTPS GitHub → SSH)
+  --remote-path PATH      Repo root on remotes (default: ~/Parent/Name, or
+                          DISTRIBUTED_REMOTE_PROJECT_ROOT when set)
 """
 
 include(joinpath(@__DIR__, "src", "ParallelRunnerKit.jl"))
 using .ParallelRunnerKit
 
 const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT", dirname(@__DIR__))
-# Relative path from home for remote hosts
-const PROJECT_NAME = basename(PROJECT_ROOT)
-const PROJECT_PARENT = basename(dirname(PROJECT_ROOT))  # e.g., "GitHub"
-const REMOTE_HOME_PATH = joinpath("~", PROJECT_PARENT, PROJECT_NAME)
 
 const _PATH_ANCHOR = abspath(expanduser(String(PROJECT_ROOT)))
 
@@ -35,8 +36,10 @@ function show_requirements()
     print_warn("Prerequisites")
     println()
     println("  1. SSH key auth to all remote hosts (ssh-copy-id user@host)")
-    println("  2. GitHub SSH access from all remote hosts (ssh -T git@github.com)")
+    println("  2. Git remote access from all hosts (GitHub: ssh -T git@github.com)")
     println("  3. Julia installed on all hosts (auto-detected, or --julia PATH)")
+    println("  4. Same repo layout on remotes, or set --remote-path /")
+    println("     DISTRIBUTED_REMOTE_PROJECT_ROOT (and use that ENV for runner.jl too)")
     println()
     print_warn("Initial Setup (example with 3 hosts)")
     println()
@@ -46,6 +49,14 @@ function show_requirements()
     println("    --instantiate host1 host2 host3")
     println("  julia --project=. ParallelRunnerKit/setup.jl \\")
     println("    --check host1 host2 host3")
+    println()
+    print_warn("Different remote path or fork URL")
+    println()
+    println("  julia --project=. ParallelRunnerKit/setup.jl \\")
+    println("    --repo git@github.com:ORG/App.jl.git \\")
+    println("    --remote-path /Users/shared/App.jl \\")
+    println("    --clone host1 host2")
+    println("  export DISTRIBUTED_REMOTE_PROJECT_ROOT=/Users/shared/App.jl")
     println()
     print_warn("Daily Use")
     println()
@@ -73,9 +84,9 @@ function check_julia(host::String, julia_path::String)
     end
 end
 
-function check_project(host::String)
+function check_project(host::String, remote_path::String)
     try
-        result = read(pipeline(Cmd(["ssh", SSH_OPTS..., host, "test -f $(REMOTE_HOME_PATH)/Project.toml && echo ok"]), stderr=devnull), String)
+        result = read(pipeline(Cmd(["ssh", SSH_OPTS..., host, "test -f $(remote_path)/Project.toml && echo ok"]), stderr=devnull), String)
         return strip(result) == "ok"
     catch
         return false
@@ -100,9 +111,9 @@ function git_push()
     end
 end
 
-function git_pull(host::String)
+function git_pull(host::String, remote_path::String)
     # Run command directly via ssh (shell expands ~)
-    cmd = "cd $(REMOTE_HOME_PATH) && git pull"
+    cmd = "cd $(remote_path) && git pull"
     try
         run(pipeline(Cmd(["ssh", SSH_OPTS..., host, cmd]), stdout=devnull, stderr=devnull))
         return true
@@ -119,13 +130,19 @@ function get_git_remote_url()
     end
 end
 
-function check_prerequisites(hosts::Vector{String}, julia_path::String; require_clean_git::Bool=false, check_code_sync::Bool=true)
+function check_prerequisites(
+    hosts::Vector{String},
+    julia_path::String,
+    remote_path::String;
+    require_clean_git::Bool=false,
+    check_code_sync::Bool=true,
+)
     println("Checking prerequisites...")
     println()
     
     all_ok = true
     needs_sync = false
-    project_path = REMOTE_HOME_PATH
+    project_path = remote_path
     
     # Local checks
     println("Local:")
@@ -187,7 +204,7 @@ function check_prerequisites(hosts::Vector{String}, julia_path::String; require_
             all_ok = false
         end
         
-        if check_project(host)
+        if check_project(host, remote_path)
             ok("Project found at $project_path")
         else
             fail("Project not found at $project_path")
@@ -198,7 +215,7 @@ function check_prerequisites(hosts::Vector{String}, julia_path::String; require_
         end
         
         # Check git commit matches
-        remote_hash = get_remote_git_hash(host, REMOTE_HOME_PATH; short=12)
+        remote_hash = get_remote_git_hash(host, remote_path; short=12)
         if remote_hash === nothing
             warn("Could not get remote git commit")
             needs_sync = true
@@ -231,7 +248,7 @@ function git_pull_local()
     end
 end
 
-function deploy(hosts::Vector{String}; do_push::Bool=true, do_pull::Bool=true, do_local_pull::Bool=false)
+function deploy(hosts::Vector{String}, remote_path::String; do_push::Bool=true, do_pull::Bool=true, do_local_pull::Bool=false)
     if do_local_pull
         print("  localhost git pull: ")
         if git_pull_local()
@@ -271,7 +288,7 @@ function deploy(hosts::Vector{String}; do_push::Bool=true, do_pull::Bool=true, d
     if do_pull
         for host in hosts
             print("  $host git pull: ")
-            if git_pull(host)
+            if git_pull(host, remote_path)
                 print_ok("✓")
                 println()
             else
@@ -291,6 +308,8 @@ function parse_args(args)
     do_push = true
     do_pull = true
     julia_path = get(ENV, "JULIA_DISTRIBUTED_EXE", "auto")  # default to env or auto-detect
+    repo_url = nothing
+    remote_path_override = nothing
     hosts = String[]
     show_help = false
     
@@ -325,7 +344,13 @@ function parse_args(args)
         elseif arg == "--julia" && i < length(args)
             julia_path = args[i+1]
             i += 2
-        elseif arg in ["-h", "--help"]
+        elseif arg == "--repo" && i < length(args)
+            repo_url = String(strip(args[i+1]))
+            i += 2
+        elseif (arg == "--remote-path" || arg == "--remote-dir") && i < length(args)
+            remote_path_override = String(strip(args[i+1]))
+            i += 2
+        elseif arg == "-h" || arg == "--help"
             show_help = true
             i += 1
         else
@@ -339,6 +364,8 @@ function parse_args(args)
         do_push=do_push,
         do_pull=do_pull,
         julia_path=julia_path,
+        repo_url=repo_url,
+        remote_path_override=remote_path_override,
         hosts=hosts,
         show_help=show_help
     )
@@ -364,13 +391,17 @@ Commands:
   --cleanup       Kill stale Julia worker processes on localhost + remote hosts
 
 Options:
-  --julia PATH    Julia path for remote hosts (default: \$JULIA_DISTRIBUTED_EXE or auto-detect)
-  -h, --help      Show this help
+  --repo URL          Clone URL (default: local git `origin`; HTTPS GitHub → SSH)
+  --remote-path PATH  Repo root on remotes (default: ~/Parent/Name, or
+                      \$DISTRIBUTED_REMOTE_PROJECT_ROOT). Alias: --remote-dir
+  --julia PATH        Julia path for remote hosts (default: \$JULIA_DISTRIBUTED_EXE or auto-detect)
+  -h, --help          Show this help
 
 Environment:
-  JULIA_DISTRIBUTED_EXE    Default Julia path for remote hosts
-  DISTRIBUTED_PROJECT_ROOT Local project root override (absolute path)
-  DISTRIBUTED_SSH_OPTS     SSH options override (space-separated)
+  JULIA_DISTRIBUTED_EXE             Default Julia path for remote hosts
+  DISTRIBUTED_PROJECT_ROOT          Local project root override (absolute path)
+  DISTRIBUTED_REMOTE_PROJECT_ROOT   Repo root on SSH hosts (setup + runner.jl)
+  DISTRIBUTED_SSH_OPTS              SSH options override (space-separated)
 
 Arguments:
   hosts...        Remote hosts (user@host format)
@@ -378,6 +409,8 @@ Arguments:
 Examples:
   julia --project=. ParallelRunnerKit/setup.jl
   julia --project=. ParallelRunnerKit/setup.jl --clone host1 host2
+  julia --project=. ParallelRunnerKit/setup.jl --repo git@github.com:ORG/App.jl.git --clone host1
+  julia --project=. ParallelRunnerKit/setup.jl --remote-path ~/work/App.jl --clone host1 host2
   julia --project=. ParallelRunnerKit/setup.jl --check host1 host2
   julia --project=. ParallelRunnerKit/setup.jl --pull host1 host2
   julia --project=. ParallelRunnerKit/setup.jl --instantiate host1 host2
@@ -385,20 +418,18 @@ Examples:
 """)
 end
 
-"""Get SSH-format clone URL from local git remote."""
-function get_clone_url()
-    origin_url = strip(read(`git -C $PROJECT_ROOT remote get-url origin`, String))
-    # Convert HTTPS to SSH format if needed
-    m = match(r"https://github\.com/(.+)", origin_url)
-    if m !== nothing
-        return "git@github.com:" * m.captures[1]
+"""Resolve clone URL: `--repo` wins, else local `origin` (HTTPS GitHub → SSH)."""
+function resolve_clone_url(repo_override::Union{Nothing,String})
+    if repo_override !== nothing && !isempty(strip(repo_override))
+        return normalize_git_clone_url(repo_override)
     end
-    return origin_url
+    url = clone_url_from_local_origin(String(PROJECT_ROOT))
+    url === nothing && error("Could not read git remote `origin`; pass --repo URL")
+    return url
 end
 
 """Delete remote repositories. Returns true if delete ran, false if cancelled."""
-function delete_remotes(hosts::Vector{String})
-    remote_path = REMOTE_HOME_PATH
+function delete_remotes(hosts::Vector{String}, remote_path::String)
     print("  ")
     print_err("This will DELETE repositories on all hosts.")
     println()
@@ -439,9 +470,7 @@ function delete_remotes(hosts::Vector{String})
 end
 
 """Clone repository on remote hosts."""
-function clone_to_remotes(hosts::Vector{String})
-    clone_url = get_clone_url()
-    remote_path = REMOTE_HOME_PATH
+function clone_to_remotes(hosts::Vector{String}, remote_path::String, clone_url::String)
     println("  Repository: $clone_url")
     println("  Remote path: $remote_path")
     println("  Hosts: $(join(hosts, ", "))")
@@ -514,11 +543,9 @@ function cleanup_workers(hosts::Vector{String})
 end
 
 """Run Pkg.instantiate on remote hosts (parallel)."""
-function instantiate_remotes(hosts::Vector{String}, julia_path::String)
-    project_path = REMOTE_HOME_PATH
-
+function instantiate_remotes(hosts::Vector{String}, julia_path::String, remote_path::String)
     println("  Local project: $(_local_project_disp())")
-    println("  Remote --project: $project_path")
+    println("  Remote --project: $remote_path")
     println()
 
     # Show all hosts as "instantiating..."
@@ -535,7 +562,7 @@ function instantiate_remotes(hosts::Vector{String}, julia_path::String)
                 results[host] = false
             else
                 try
-                    cmd = "$host_julia --project=$project_path -e 'using Pkg; Pkg.instantiate(io=devnull)'"
+                    cmd = "$host_julia --project=$remote_path -e 'using Pkg; Pkg.instantiate(io=devnull)'"
                     read(Cmd(["ssh", SSH_OPTS..., host, cmd]), String)
                     results[host] = true
                 catch
@@ -575,14 +602,21 @@ function main()
         show_usage()
         exit(1)
     end
+
+    remote_path = resolve_remote_project_root(
+        String(PROJECT_ROOT);
+        cli_override=opts.remote_path_override,
+    )
     
     mode_name = Dict(:clone => "Clone", :delete => "Delete", :check => "Check Prerequisites", :pull => "Pull", :sync => "Sync", :instantiate => "Instantiate", :cleanup => "Cleanup Workers")[opts.mode]
     print_header(mode_name)
     println()
+    writeln_both("Remote project path: $remote_path")
+    println()
     
     # Handle delete mode
     if opts.mode == :delete
-        if delete_remotes(opts.hosts)
+        if delete_remotes(opts.hosts, remote_path)
             println()
             print_ok("Delete complete.")
             println()
@@ -592,16 +626,22 @@ function main()
 
     # Handle clone mode
     if opts.mode == :clone
-        clone_to_remotes(opts.hosts)
+        clone_url = resolve_clone_url(opts.repo_url)
+        clone_to_remotes(opts.hosts, remote_path, clone_url)
         println()
         print_ok("Clone complete.")
         println()
+        if opts.remote_path_override !== nothing || !isempty(strip(get(ENV, "DISTRIBUTED_REMOTE_PROJECT_ROOT", "")))
+            println("  Tip: export DISTRIBUTED_REMOTE_PROJECT_ROOT=$remote_path")
+            println("       so runner.jl uses the same remote root for workers / collect.")
+            println()
+        end
         return
     end
 
     # Handle instantiate mode separately
     if opts.mode == :instantiate
-        instantiate_remotes(opts.hosts, opts.julia_path)
+        instantiate_remotes(opts.hosts, opts.julia_path, remote_path)
         println()
         print_ok("Instantiate complete.")
         println()
@@ -622,7 +662,10 @@ function main()
     # For --check: require code sync
     require_clean = (opts.mode == :sync)
     check_code_sync = (opts.mode == :check)
-    result = check_prerequisites(opts.hosts, opts.julia_path; require_clean_git=require_clean, check_code_sync=check_code_sync)
+    result = check_prerequisites(
+        opts.hosts, opts.julia_path, remote_path;
+        require_clean_git=require_clean, check_code_sync=check_code_sync,
+    )
     
     if !result.ok
         print_err("Prerequisites not met. Fix issues above and retry.")
@@ -652,7 +695,7 @@ function main()
     # --sync: push from localhost, then pull on remotes (laptop-centric workflow)
     do_push       = (opts.mode == :sync)
     do_local_pull = (opts.mode == :pull)
-    if !deploy(opts.hosts; do_push=do_push, do_pull=true, do_local_pull=do_local_pull)
+    if !deploy(opts.hosts, remote_path; do_push=do_push, do_pull=true, do_local_pull=do_local_pull)
         print_err("$mode_name failed.")
         println()
         exit(1)

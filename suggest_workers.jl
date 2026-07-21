@@ -27,6 +27,7 @@ include(joinpath(RUNNER_KIT_DIR, "src", "ParallelRunnerKit.jl"))
 using .ParallelRunnerKit
 
 using Distributed
+using Pkg
 
 const _PATH_ANCHOR = abspath(expanduser(String(PROJECT_ROOT)))
 

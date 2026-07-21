@@ -2,20 +2,49 @@
     include(joinpath(@__DIR__, "..", "src", "ParallelRunnerKit.jl"))
     using .ParallelRunnerKit
 
-    mktempdir() do d
+    mktempdir() do tmp
+        d = abspath(string(tmp))
         @test project_package_name(d) === nothing
         write(joinpath(d, "Project.toml"), "name = \"FooBar\"\n")
         @test project_package_name(d) == "FooBar"
     end
 
-    mktempdir() do root
+    mktempdir() do tmp
+        root = abspath(string(tmp))
         mkpath(joinpath(root, "kitstub"))
         write(joinpath(root, "Project.toml"), "name = \"App\"\n")
         write(joinpath(root, "kitstub", "Project.toml"), "name = \"ParallelRunnerKit\"\n")
         @test resolve_pkg_project_dir(joinpath(root, "kitstub")) == root
     end
 
-    @test parallel_runner_kit_version() >= v"0.2.0"
+    @test parallel_runner_kit_version() >= v"0.2.1"
+
+    @test ParallelRunnerKit.normalize_git_clone_url("https://github.com/org/App.jl.git") ==
+        "git@github.com:org/App.jl.git"
+    @test ParallelRunnerKit.normalize_git_clone_url("git@github.com:org/App.jl.git") ==
+        "git@github.com:org/App.jl.git"
+
+    @test ParallelRunnerKit.default_remote_project_path("/Users/z/GitHub/MyApp.jl") ==
+        joinpath("~", "GitHub", "MyApp.jl")
+
+    withenv("DISTRIBUTED_REMOTE_PROJECT_ROOT" => nothing) do
+        @test ParallelRunnerKit.resolve_remote_project_root("/Users/z/GitHub/MyApp.jl") ==
+            joinpath("~", "GitHub", "MyApp.jl")
+    end
+    withenv("DISTRIBUTED_REMOTE_PROJECT_ROOT" => "/Volumes/shared/MyApp.jl") do
+        @test ParallelRunnerKit.resolve_remote_project_root("/Users/z/GitHub/MyApp.jl") ==
+            "/Volumes/shared/MyApp.jl"
+    end
+    @test ParallelRunnerKit.resolve_remote_project_root(
+            "/Users/z/GitHub/MyApp.jl";
+            cli_override="~/work/MyApp.jl",
+        ) == "~/work/MyApp.jl"
+    withenv("DISTRIBUTED_REMOTE_PROJECT_ROOT" => "/Volumes/shared/MyApp.jl") do
+        @test ParallelRunnerKit.resolve_remote_project_root(
+                "/Users/z/GitHub/MyApp.jl";
+                cli_override="~/work/MyApp.jl",
+            ) == "~/work/MyApp.jl"
+    end
 
     @test_throws ArgumentError ParallelRunnerKit.parse_runner_args(["--collect", "h"])
     @test_throws ArgumentError ParallelRunnerKit.parse_runner_args(["--collect-sync", "data/sweep", "host"])
@@ -64,17 +93,18 @@
             ) == joinpath("/Volumes/z/clone/MyRepo", "data", "sweep", "x", "ts") |> abspath
     end
 
-    mktempdir() do d
+    mktempdir() do tmp
+        d = abspath(string(tmp))
         nested = joinpath(d, "a", "b.txt")
         mkpath(dirname(nested))
         write(nested, "")
         @test display_path(nested, d) == joinpath("a", "b.txt")
     end
 
-    mktempdir() do repo
+    mktempdir() do tmp
+        repo = abspath(string(tmp))
         sd = joinpath(repo, "scripts")
         mkpath(sd)
-        out1 = joinpath(repo, "out1")
         out2 = joinpath(repo, "nested", "out2")
         withenv(
             "DISTRIBUTED_COLLECT_DIRS" => "out1:$(out2)",
