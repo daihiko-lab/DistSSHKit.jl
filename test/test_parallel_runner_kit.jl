@@ -1,3 +1,5 @@
+using Test
+
 @testset "ParallelRunnerKit (path helpers)" begin
     include(joinpath(@__DIR__, "..", "src", "ParallelRunnerKit.jl"))
     using .ParallelRunnerKit
