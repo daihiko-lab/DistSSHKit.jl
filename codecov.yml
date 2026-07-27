@@ -7,7 +7,5 @@ coverage:
       default:
         informational: true
 
-# No `ignore` list: runner.jl / setup.jl / suggest_workers.jl are the CLI entry points
-# users actually run, and are currently exercised manually (SSH, real workers) rather
-# than in unit tests. Coverage % reflects that honestly instead of hiding it. See
-# `docs` / issues for a runner.jl smoke-test plan to raise this over time.
+# No `ignore` list: CLI entry points stay in coverage reports. `test/test_runner_smoke.jl`
+# exercises `runner.jl --local` in CI; SSH-heavy paths are still mostly manual.

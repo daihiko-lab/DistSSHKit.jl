@@ -7,3 +7,4 @@
 
 using Test
 include(joinpath(@__DIR__, "test_parallel_runner_kit.jl"))
+include(joinpath(@__DIR__, "test_runner_smoke.jl"))
