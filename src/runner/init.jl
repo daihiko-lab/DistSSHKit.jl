@@ -1,4 +1,3 @@
-include(joinpath(@__DIR__, "_common.jl"))
 using Pkg
 
 function init_runner_workers!(proj_dir::String, explicit_package, root_disp::String)

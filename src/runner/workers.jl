@@ -1,5 +1,3 @@
-include(joinpath(@__DIR__, "_common.jl"))
-
 function cleanup_stale_workers!(hosts)
     writeln_both("Cleaning up stale workers...")
 

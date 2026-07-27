@@ -6,7 +6,7 @@
 #   julia --project=. -e 'using Pkg; Pkg.test()'
 #
 # Maintainer checks: README.md ("Local verification").
-#   jetls check demos/*.jl test/*.jl src/**/*.jl
+#   jetls check demos/*.jl src/SSHRunner.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
 
 using Test
 
@@ -18,6 +18,7 @@ include(joinpath(@__DIR__, "test_runner_log_common.jl"))
 const _TEST_FILES = (
     "test_path_helpers.jl",
     "test_main_dispatch.jl",
+    "test_demo_cli.jl",
     "test_host_project_toml.jl",
     "test_runner_args.jl",
     "test_runner_smoke.jl",

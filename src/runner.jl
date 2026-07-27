@@ -86,6 +86,7 @@ const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
     runner_kit_project_root(@__DIR__)
 end
 
+include(joinpath(@__DIR__, "runner", "_common.jl"))
 include(joinpath(@__DIR__, "runner", "args.jl"))
 include(joinpath(@__DIR__, "runner", "checks.jl"))
 include(joinpath(@__DIR__, "runner", "collect.jl"))

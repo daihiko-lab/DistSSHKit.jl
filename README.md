@@ -36,11 +36,19 @@ julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/SSH
 
 See [Releases/Tags](https://github.com/daihiko-lab/SSHRunner.jl/tags) for the latest tag name.
 
-Try it locally first (no SSH needed) — this adds 2 local worker processes and runs [`demos/param_sweep.jl`](demos/param_sweep.jl):
+Try it locally first (no SSH needed) — copy the bundled demos into your project, then run one:
 
 ```bash
+julia --project=. -m SSHRunner demo install
 julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
+julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
 ```
+
+`demo install` copies each demo as a single, self-contained file into `./demos/` — open and edit `demos/*.jl` directly in your editor. Existing files are not overwritten (use `--force` to reset to the bundled version).
+
+Notes:
+- To see the bundled paths without copying: `julia --project=. -m SSHRunner demo list`
+- To pick the destination explicitly: `julia --project=. -m SSHRunner demo install --dest DIR`
 
 With remote hosts, the flow looks like this:
 
@@ -60,12 +68,13 @@ julia --project=. -m SSHRunner runner \
 julia --project=. -m SSHRunner suggest-workers --local HOST1 HOST2
 ```
 
-Everything after `runner` / `setup` / `suggest-workers` becomes that command's `ARGS`. If the worker module name differs from your `Project.toml` `name`, use `--package NAME`.
+Everything after `runner` / `demo` / `setup` / `suggest-workers` becomes that command's `ARGS`. If the worker module name differs from your `Project.toml` `name`, use `--package NAME`.
 
 See each subcommand's full option list with `--help`:
 
 ```bash
 julia --project=. -m SSHRunner runner --help
+julia --project=. -m SSHRunner demo --help
 julia --project=. -m SSHRunner setup --help
 julia --project=. -m SSHRunner suggest-workers --help
 ```
@@ -170,14 +179,14 @@ From the kit checkout root, maintainers typically run:
 julia --project=. -e 'using Pkg; Pkg.test()'
 
 # 2. Static analysis — needs `jetls` on PATH (e.g. Pkg.Apps.add + `export PATH="$HOME/.julia/bin:$PATH"` in shell rc)
-jetls check demos/*.jl test/*.jl src/**/*.jl
+jetls check demos/*.jl src/SSHRunner.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
 
 # 3. Manual smoke (same as README quickstart)
 julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
 julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
 ```
 
-`Pkg.test()` covers the demos via `test/test_demos.jl`; steps 2–3 are extra checks before pushing.
+`Pkg.test()` covers both the demo scripts (`test/test_demos.jl`) and `demo install`/`demo list` (`test/test_demo_cli.jl`) automatically; steps 2–3 are extra checks before pushing.
 
 CI also runs [`.github/workflows/CI.yml`](.github/workflows/CI.yml) and [`.github/workflows/jetls.yml`](.github/workflows/jetls.yml).
 

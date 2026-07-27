@@ -36,11 +36,19 @@ julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/SSH
 
 最新のタグ名は [Releases/Tags 一覧](https://github.com/daihiko-lab/SSHRunner.jl/tags) を参照。
 
-まずはローカルだけで試すとよい (SSH 不要)。ローカルワーカー2つを立てて [`demos/param_sweep.jl`](demos/param_sweep.jl) を実行するだけ:
+まずはローカルだけで試すとよい (SSH 不要)。同梱 demo をプロジェクトにコピーしてから実行する:
 
 ```bash
+julia --project=. -m SSHRunner demo install
 julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
+julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
 ```
+
+`demo install` でコピーされる `./demos/*.jl` は、1ファイルで完結したテンプレート。そのままエディタで開いて読み・編集できる。既存ファイルは上書きしない (元に戻したいときは `--force`)。
+
+補足:
+- コピーせずパッケージ内のパスだけ確認したいとき: `julia --project=. -m SSHRunner demo list`
+- コピー先を指定したいとき: `julia --project=. -m SSHRunner demo install --dest DIR`
 
 リモートを使う場合はこの流れ:
 
@@ -60,12 +68,13 @@ julia --project=. -m SSHRunner runner \
 julia --project=. -m SSHRunner suggest-workers --local HOST1 HOST2
 ```
 
-`runner` / `setup` / `suggest-workers` の後ろがそのまま各コマンドの `ARGS` になる。ワーカーで load するモジュール名がホストの `Project.toml` の `name` と違うときは `--package NAME`。
+`runner` / `demo` / `setup` / `suggest-workers` の後ろがそのまま各コマンドの `ARGS` になる。ワーカーで load するモジュール名がホストの `Project.toml` の `name` と違うときは `--package NAME`。
 
 各サブコマンドの詳しいオプションは `--help` で確認できる:
 
 ```bash
 julia --project=. -m SSHRunner runner --help
+julia --project=. -m SSHRunner demo --help
 julia --project=. -m SSHRunner setup --help
 julia --project=. -m SSHRunner suggest-workers --help
 ```
@@ -170,14 +179,14 @@ julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/SSHRunner.jl
 julia --project=. -e 'using Pkg; Pkg.test()'
 
 # 2. 静的解析 — `jetls` が PATH にあること (Pkg.Apps.add 後、.zshrc 等で `export PATH="$HOME/.julia/bin:$PATH"` など)
-jetls check demos/*.jl test/*.jl src/**/*.jl
+jetls check demos/*.jl src/SSHRunner.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
 
 # 3. 手動スモーク (README クイックスタートと同じ)
 julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
 julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
 ```
 
-`Pkg.test()` は `test/test_demos.jl` で demo も回す。2–3 は push 前の追加確認。
+`Pkg.test()` は `test/test_demos.jl` (demo スクリプト自体) と `test/test_demo_cli.jl` (`demo install`/`demo list`) の両方を自動で回す。2–3 は push 前の追加確認。
 
 CI では [`CI.yml`](.github/workflows/CI.yml) と [`jetls.yml`](.github/workflows/jetls.yml) も走らせている。
 
