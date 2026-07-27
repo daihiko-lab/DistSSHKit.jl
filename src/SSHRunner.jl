@@ -1,21 +1,21 @@
 """
-ParallelRunnerKit — shared utilities for `runner.jl`, `setup.jl`, and `suggest_workers.jl`
+SSHRunner — shared utilities for `runner.jl`, `setup.jl`, and `suggest_workers.jl`
 (paths, logging, SSH/git, remote resource probes, runner CLI parsing and help text,
 worker memory checks, git parity across hosts).
 
-Scripts load this module via a relative `include` and then `using .ParallelRunnerKit`.
-When vendored as a registered package, replace with `using ParallelRunnerKit`.
+Scripts load this module via a relative `include` and then `using .SSHRunner`.
+When vendored as a registered package, replace with `using SSHRunner`.
 """
-module ParallelRunnerKit
+module SSHRunner
 
 using Dates
 
-export LOG_FILE_HANDLE, OUTPUT_WIDTH, PARALLEL_RUNNER_KIT_VERSION, SSH_OPTS, TeeIO
+export LOG_FILE_HANDLE, OUTPUT_WIDTH, SSH_OPTS, SSH_RUNNER_VERSION, TeeIO
 export build_ssh_opts, check_git_hashes, check_memory_capacity, clone_url_from_local_origin
 export close_log_file, collect_tree_remote_files_ssh, default_remote_project_path, detect_julia_path
 export display_path, distributed_collect_root_dirs, fail, get_local_git_hash, get_local_resources
 export get_remote_git_hash, get_remote_nproc, get_remote_total_gb, init_log_file
-export normalize_git_clone_url, ok, parallel_runner_kit_version, parse_runner_args
+export normalize_git_clone_url, ok, parse_runner_args, ssh_runner_version
 export print_err, print_header, print_info, print_ok, print_separator, print_warn
 export project_package_name, remote_path_for_ssh_collect, resolve_pkg_project_dir
 export runner_kit_project_root
@@ -74,7 +74,7 @@ Walk upward from `start_dir` to find the directory that should be passed to
 `Pkg.activate` on workers.
 
 If the first `Project.toml` found is the **vendored stub** (its `name` is
-`ParallelRunnerKit`, matching this kit’s own `Project.toml`) and the parent
+`SSHRunner`, matching this kit’s own `Project.toml`) and the parent
 directory also has a `Project.toml`, skip it and keep walking so scripts
 co-located with the kit inherit the application project root (regardless of
 the kit folder’s basename).
@@ -87,7 +87,7 @@ function resolve_pkg_project_dir(start_dir::AbstractString)::String
         if isfile(pt)
             parent = dirname(test_dir)
             stub = project_package_name(test_dir)
-            skip_stub = stub == "ParallelRunnerKit" && isfile(joinpath(parent, "Project.toml"))
+            skip_stub = stub == "SSHRunner" && isfile(joinpath(parent, "Project.toml"))
             skip_stub || return test_dir
         end
         parent = dirname(test_dir)
@@ -101,7 +101,7 @@ end
 Default local project root for `runner.jl` / `setup.jl` / `suggest_workers.jl`.
 
 - Standalone kit checkout (`Project.toml` at repo root): the kit directory.
-- Embedded under a host app (`…/ParallelRunnerKit/` stub next to the app `Project.toml`): the app root.
+- Embedded under a host app (`…/SSHRunner/` stub next to the app `Project.toml`): the app root.
 """
 function runner_kit_project_root(kit_dir::AbstractString)::String
     root = String(abspath(expanduser(String(kit_dir))))
@@ -109,7 +109,7 @@ function runner_kit_project_root(kit_dir::AbstractString)::String
     isfile(joinpath(root, "Project.toml")) || return dirname(root)
     parent = dirname(root)
     stub = project_package_name(root)
-    if stub == "ParallelRunnerKit" && isfile(joinpath(parent, "Project.toml"))
+    if stub == "SSHRunner" && isfile(joinpath(parent, "Project.toml"))
         return parent
     end
     return root
@@ -129,15 +129,15 @@ function _project_toml_version(path::AbstractString)::Union{Nothing,VersionNumbe
     end
 end
 
-const _PARALLEL_RUNNER_KIT_PROJECT_TOML = joinpath(@__DIR__, "..", "Project.toml")
+const _SSH_RUNNER_PROJECT_TOML = joinpath(@__DIR__, "..", "Project.toml")
 
-"""Semantic version of this vendored kit (from `ParallelRunnerKit/Project.toml`)."""
-const PARALLEL_RUNNER_KIT_VERSION = something(
-    _project_toml_version(_PARALLEL_RUNNER_KIT_PROJECT_TOML),
+"""Semantic version of this vendored kit (from `SSHRunner/Project.toml`)."""
+const SSH_RUNNER_VERSION = something(
+    _project_toml_version(_SSH_RUNNER_PROJECT_TOML),
     v"0.0.0",
 )
 
-parallel_runner_kit_version()::VersionNumber = PARALLEL_RUNNER_KIT_VERSION
+ssh_runner_version()::VersionNumber = SSH_RUNNER_VERSION
 
 # =============================================================================
 # Output Formatting
@@ -897,11 +897,11 @@ end
 function runner_help_text()::String
     """
 Usage:
-  julia --project=. ParallelRunnerKit/src/runner.jl [options] [hosts...] script.jl [script_args...]
+  julia --project=. -m SSHRunner runner [options] [hosts...] script.jl [script_args...]
 
 Collect-only (no script):
-  julia --project=. ParallelRunnerKit/src/runner.jl --collect-missing ROOT HOST [HOST...]
-  julia --project=. ParallelRunnerKit/src/runner.jl --collect-overwrite ROOT HOST [HOST...]
+  julia --project=. -m SSHRunner runner --collect-missing ROOT HOST [HOST...]
+  julia --project=. -m SSHRunner runner --collect-overwrite ROOT HOST [HOST...]
   (aliases: --collect-tree == --collect-missing; --collect-tree-sync == --collect-overwrite)
 
 Options:
@@ -930,19 +930,22 @@ Worker counts:
 
 Examples:
   # Local + remote (9 local + 10 + 8 remote = 27 worker processes)
-  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 host1:10 host2:8 myscript.jl
+  julia --project=. -m SSHRunner runner --local 9 host1:10 host2:8 myscript.jl
 
   # Default workers for all remote hosts
-  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 --workers 10 host1 host2 myscript.jl
+  julia --project=. -m SSHRunner runner --local 9 --workers 10 host1 host2 myscript.jl
 
   # Local only (9 worker processes)
-  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 myscript.jl
+  julia --project=. -m SSHRunner runner --local 9 myscript.jl
 
   # Remote only (master on local, workers on remotes)
-  julia --project=. ParallelRunnerKit/src/runner.jl host1:10 myscript.jl
+  julia --project=. -m SSHRunner runner host1:10 myscript.jl
 
   # Pull any file under data/sweep that exists on hosts but not locally (recursive; sweep scripts write here):
-  julia --project=. ParallelRunnerKit/src/runner.jl --collect-missing data/sweep host1 host2
+  julia --project=. -m SSHRunner runner --collect-missing data/sweep host1 host2
+
+Vendored/submodule form (no install; run the script file directly):
+  julia --project=. SSHRunner/src/runner.jl --local 9 myscript.jl
 
 Note:
   This uses Distributed.jl (multi-process parallelism).
@@ -964,17 +967,14 @@ Prerequisites:
 end
 
 # =============================================================================
-# Pkg App entry points (experimental proof of concept)
+# CLI entry points (for `Pkg.add`/`Pkg.develop` users)
 # =============================================================================
-# `Pkg.Apps` is itself an experimental Pkg.jl feature; this wiring may need to
-# change once it stabilizes. Kept intentionally thin: each app delegates to the
-# vendored CLI scripts in `src/` (`runner.jl`, `setup.jl`, …) unchanged rather than duplicating logic here.
+# Each entry point delegates to the vendored CLI scripts in `src/` (`runner.jl`,
+# `setup.jl`, …) unchanged rather than duplicating logic here.
 #
-# Try it locally:
-#   julia -e 'using Pkg; Pkg.Apps.develop(path="/path/to/ParallelRunnerKit.jl")'
-#   prunner --help    # ~/.julia/bin on PATH
-#   psetup --help
-#   psuggest --help
+# Primary workflow (no submodule/Pkg Apps needed):
+#   julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/SSHRunner.jl.git", rev="vX.Y.Z")'
+#   julia --project=. -m SSHRunner runner --local 2 script.jl
 
 const _KIT_ROOT = dirname(@__DIR__)
 
@@ -990,12 +990,64 @@ function _run_kit_cli_script(script_name::AbstractString, args::Vector{String}):
     else
         joinpath(@__DIR__, String(script_name))
     end
-    include(script_path)
+    # Include into `Main` (not this package's module): the script's top-level code
+    # (worker ping closures, `isdefined(Main, :main)` checks, etc.) must live in `Main`
+    # to match the vendored/`include`d script workflow — otherwise closures sent to
+    # worker processes fail to deserialize (their owning module, this package, is not
+    # necessarily `using`-loaded on the worker yet).
+    Base.include(Main, script_path)
     return 0
 end
 
-include("AppRunner.jl")
-include("AppSetup.jl")
-include("AppSuggest.jl")
+"""
+    runner(args::Vector{String}=copy(ARGS))
 
-end # module ParallelRunnerKit
+Run `runner.jl` (distributed runs) with `args`. Backs `julia -m SSHRunner runner ...`
+(see [`(@main)`](@ref)), which is the recommended way to call this for `Pkg.add`/
+`Pkg.develop` users who don't vendor the kit's CLI scripts directly. Also callable
+directly via `-e` if you need to avoid `-m`:
+
+    julia --project=. -e 'using SSHRunner; SSHRunner.runner()' -- --local 2 script.jl
+"""
+runner(args::Vector{String}=copy(ARGS))::Cint = _run_kit_cli_script("runner.jl", args)
+
+"""
+    setup(args::Vector{String}=copy(ARGS))
+
+Run `setup.jl` (clone / sync / cleanup) with `args`. See [`runner`](@ref).
+"""
+setup(args::Vector{String}=copy(ARGS))::Cint = _run_kit_cli_script("setup.jl", args)
+
+"""
+    suggest_workers(args::Vector{String}=copy(ARGS))
+
+Run `suggest_workers.jl` (worker-count hints) with `args`. See [`runner`](@ref).
+"""
+suggest_workers(args::Vector{String}=copy(ARGS))::Cint = _run_kit_cli_script("suggest_workers.jl", args)
+
+"""
+    (@main)(args::Vector{String}=copy(ARGS))
+
+Subcommand dispatch for `julia -m SSHRunner SUBCOMMAND ...` (Julia 1.12+, no
+`Pkg Apps` install needed — works for any `Pkg.add`/`Pkg.develop`ed package):
+
+    julia --project=. -m SSHRunner runner --local 2 script.jl
+    julia --project=. -m SSHRunner setup --clone host1 host2
+    julia --project=. -m SSHRunner suggest-workers --local host1 host2
+"""
+function (@main)(args::Vector{String}=copy(ARGS))::Cint
+    isempty(args) && (println(stderr, "Usage: julia -m SSHRunner {runner|setup|suggest-workers} [args...]"); return 1)
+    subcommand, rest = args[1], args[2:end]
+    if subcommand == "runner"
+        return runner(rest)
+    elseif subcommand == "setup"
+        return setup(rest)
+    elseif subcommand in ("suggest-workers", "suggest_workers")
+        return suggest_workers(rest)
+    else
+        println(stderr, "Unknown subcommand: $subcommand (expected runner|setup|suggest-workers)")
+        return 1
+    end
+end
+
+end # module SSHRunner

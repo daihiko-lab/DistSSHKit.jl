@@ -18,15 +18,18 @@ Workflow:
   6. Run the target script
   7. Collect new result files from remote hosts back to local
 
-Usage:
+Usage (via `Pkg.add`/`Pkg.develop`; see also vendored form below):
   # Remote hosts only (master process on local, workers on remotes)
-  julia --project=. ParallelRunnerKit/src/runner.jl host1:10 host2:10 script.jl --args
+  julia --project=. -m SSHRunner runner host1:10 host2:10 script.jl --args
 
   # Local + remote (9 local workers + 20 remote = 29 total worker processes)
-  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 host1:10 host2:10 script.jl --args
+  julia --project=. -m SSHRunner runner --local 9 host1:10 host2:10 script.jl --args
 
   # Local only (9 worker processes)
-  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 script.jl --args
+  julia --project=. -m SSHRunner runner --local 9 script.jl --args
+
+  # Vendored/submodule form (no install; run the script file directly)
+  julia --project=. SSHRunner/src/runner.jl --local 9 script.jl --args
 
 Host specification:
   hostname        Use default worker count (1 or --workers N)
@@ -53,7 +56,7 @@ Output:
 
 Environment variables:
   DISTRIBUTED_SSH_OPTS       Custom SSH options (space-separated)
-  DISTRIBUTED_COLLECT_DIRS   Colon-separated dirs to rsync after run (repo-relative or abs); see ParallelRunnerKit.distributed_collect_root_dirs
+  DISTRIBUTED_COLLECT_DIRS   Colon-separated dirs to rsync after run (repo-relative or abs); see SSHRunner.distributed_collect_root_dirs
   JULIA_DISTRIBUTED_EXE      Default Julia path for remote hosts
 
 Prerequisites:
@@ -64,21 +67,23 @@ Prerequisites:
 
 Example (full workflow):
   # 1. Sync code to remotes
-  julia --project=. ParallelRunnerKit/src/setup.jl --sync host1 host2
+  julia --project=. -m SSHRunner setup --sync host1 host2
 
   # 2. Run a driver script with 29 worker processes (9 local + 10 + 10 remote)
-  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 host1:10 host2:10 \\
+  julia --project=. -m SSHRunner runner --local 9 host1:10 host2:10 \\
       scripts/jobs.jl --config configs/cell.json
 
-See also: ParallelRunnerKit/src/setup.jl, ParallelRunnerKit/README.md
+See also: `julia -m SSHRunner setup --help`, README.md
 """
 
 using Distributed
 using Dates
 using Pkg
 
-include(joinpath(@__DIR__, "ParallelRunnerKit.jl"))
-using .ParallelRunnerKit
+# When loaded via `Pkg.add`/`Pkg.develop` (real package, e.g. through `SSHRunner.runner()`),
+# `SSHRunner` is already bound in this module (`Main`); skip the vendored/script re-include.
+isdefined(@__MODULE__, :SSHRunner) || include(joinpath(@__DIR__, "SSHRunner.jl"))
+using .SSHRunner
 
 # Project root for git checks (same as setup.jl; script-path-derived proj_dir used for execution)
 const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
@@ -102,7 +107,7 @@ function runner_collect_tree(local_root::AbstractString, host_names::Vector{Stri
     ssh_cmd_str  = "ssh " * join(SSH_OPTS, " ")
 
     println("============================================================")
-    println(merge ? "ParallelRunnerKit collect-overwrite" : "ParallelRunnerKit collect-missing")
+    println(merge ? "SSHRunner collect-overwrite" : "SSHRunner collect-missing")
     println("============================================================")
     println("local root : ", display_path(local_root, root_disp))
     println("mode       : ", merge ? "full sync (same-named files updated when remote differs)" :
@@ -272,7 +277,7 @@ function runner_main()
         s == "." ? basename(abspath(String(proj_dir))) : s
     end
     writeln_both("Project: $(proj_disp)")
-    writeln_both("ParallelRunnerKit: $(parallel_runner_kit_version())")
+    writeln_both("SSHRunner: $(ssh_runner_version())")
     app_git = get_local_git_hash(proj_dir; short=8)
     writeln_both("Application git (project dir): $(app_git === nothing ? "unavailable" : app_git)")
     writeln_both("")
@@ -291,7 +296,7 @@ function runner_main()
                 writeln_both("Git hash mismatch on $(join(mismatches, ", "))")
                 writeln_both("")
                 writeln_both("To sync, run:")
-                print_info("  julia --project=. ParallelRunnerKit/src/setup.jl --sync $(join(mismatches, " "))\n")
+                print_info("  julia --project=. -m SSHRunner setup --sync $(join(mismatches, " "))\n")
                 writeln_both("")
                 writeln_both("Or skip check (not recommended):")
                 print_warn("  --skip-hash-check\n")
