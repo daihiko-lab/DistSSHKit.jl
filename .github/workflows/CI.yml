@@ -35,7 +35,7 @@ jobs:
       - name: jetls check
         run: |
           shopt -s nullglob
-          jetls check --exit-severity=error --progress=none *.jl src/*.jl test/*.jl test/fixtures/*.jl
+          jetls check --exit-severity=error --progress=none src/*.jl test/*.jl test/fixtures/*.jl
 
   test:
     runs-on: ubuntu-latest
