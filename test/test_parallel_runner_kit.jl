@@ -317,6 +317,50 @@ using Test
         run(Cmd(["git", "-C", d, "remote", "add", "origin", "https://github.com/org/App.jl.git"]))
         @test ParallelRunnerKit.clone_url_from_local_origin(d) == "git@github.com:org/App.jl.git"
     end
+
+    # -- Pkg app bridge (_run_kit_cli_script) -----------------------------
+    @test isdefined(ParallelRunnerKit, :Runner)
+    @test isdefined(ParallelRunnerKit, :Setup)
+    @test isdefined(ParallelRunnerKit, :Suggest)
+
+    let fixture = abspath(joinpath(@__DIR__, "fixtures", "cli_echo_args.jl"))
+        # Regression: app launcher may pass `ARGS` itself; must not empty before snapshot.
+        mktemp() do args_file, _
+            withenv(
+                "DISTRIBUTED_PROJECT_ROOT" => "/override",
+                "_PRK_TEST_ARGS_FILE" => args_file,
+            ) do
+                empty!(ARGS)
+                append!(ARGS, ["--local", "2", "job.jl"])
+                @test ParallelRunnerKit._run_kit_cli_script(fixture, ARGS) == 0
+                @test readlines(args_file) == ["--local", "2", "job.jl"]
+            end
+        end
+
+        mktempdir() do tmp
+            mktemp() do args_file, _
+                withenv(
+                    "DISTRIBUTED_PROJECT_ROOT" => nothing,
+                    "_PRK_TEST_ARGS_FILE" => args_file,
+                ) do
+                    cd(tmp) do
+                        empty!(ARGS)
+                        @test ParallelRunnerKit._run_kit_cli_script(fixture, ["probe"]) == 0
+                        @test realpath(ENV["DISTRIBUTED_PROJECT_ROOT"]) == realpath(tmp)
+                        @test readlines(args_file) == ["probe"]
+                    end
+                end
+            end
+        end
+    end
+end
+
+@testset "Pkg [apps] in Project.toml" begin
+    using TOML
+    apps = get(TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml")), "apps", Dict{String,Any}())
+    @test get(get(apps, "prunner", Dict()), "submodule", "") == "Runner"
+    @test get(get(apps, "psetup", Dict()), "submodule", "") == "Setup"
+    @test get(get(apps, "psuggest", Dict()), "submodule", "") == "Suggest"
 end
 
 @testset "host Project.toml merges kit [deps] (monorepo layout)" begin

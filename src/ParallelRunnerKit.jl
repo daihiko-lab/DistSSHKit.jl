@@ -962,4 +962,35 @@ Prerequisites:
 """
 end
 
+# =============================================================================
+# Pkg App entry points (experimental proof of concept)
+# =============================================================================
+# `Pkg.Apps` is itself an experimental Pkg.jl feature; this wiring may need to
+# change once it stabilizes. Kept intentionally thin: each app delegates to the
+# vendored top-level `*.jl` CLI unchanged rather than duplicating logic here.
+#
+# Try it locally:
+#   julia -e 'using Pkg; Pkg.Apps.develop(path="/path/to/ParallelRunnerKit.jl")'
+#   prunner --help    # ~/.julia/bin on PATH
+#   psetup --help
+#   psuggest --help
+
+const _KIT_ROOT = dirname(@__DIR__)
+
+"""Run a vendored kit CLI script (`runner.jl`, `setup.jl`, …) with `ARGS` set."""
+function _run_kit_cli_script(script_name::AbstractString, args::Vector{String})::Cint
+    haskey(ENV, "DISTRIBUTED_PROJECT_ROOT") || (ENV["DISTRIBUTED_PROJECT_ROOT"] = pwd())
+    # `args` may alias `ARGS` (the app launcher can pass `ARGS` directly).
+    args_snapshot = collect(String, args)
+    empty!(ARGS)
+    append!(ARGS, args_snapshot)
+    script_path = isabspath(script_name) ? String(script_name) : joinpath(_KIT_ROOT, String(script_name))
+    include(script_path)
+    return 0
+end
+
+include("Runner.jl")
+include("Setup.jl")
+include("Suggest.jl")
+
 end # module ParallelRunnerKit

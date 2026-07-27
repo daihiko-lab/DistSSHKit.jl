@@ -10,19 +10,25 @@ English: [README.md](README.md)
 
 **状態:** `0.x` (1.0 未満)。マイナー版の間でもインターフェースが変わる可能性がある。
 
-## インストール
+リモートホストを使う場合は、手順の前に [環境・SSH の基準](#環境ssh-の基準) を読むこと。
 
-```bash
-git clone https://github.com/daihiko-lab/ParallelRunnerKit.jl.git
-cd ParallelRunnerKit.jl
-julia --project=. -e 'using Pkg; Pkg.instantiate()'
-```
+## 使い方は2つだけ
 
-他アプリへの埋め込み (サブモジュール等) は [埋め込み](#埋め込み) を参照。
+| | **1. パッケージアプリインストール** 実験的 | **2. CLI (スクリプト)** 推奨 |
+|---|---|---|
+| 何をするか | `Pkg.Apps` でパッケージを入れ、`prunner` 等をシェルから使う | `runner.jl` 等を `julia --project=.` で直接呼ぶ |
+| キットの置き方 | リポジトリにキットを置かない。Julia のパッケージ環境にインストール | リポジトリを clone、または `MyApp.jl/ParallelRunnerKit/` に submodule 等 |
+| **どこで実行するか** | **アプリルート** (`Project.toml` があるディレクトリ) | 同左 |
+| 起動例 | `prunner ...` (`--project` 不要) | `julia --project=. ParallelRunnerKit/runner.jl ...` |
+| ツール | `prunner` / `psetup` / `psuggest` | `runner.jl` / `setup.jl` / `suggest_workers.jl` |
 
-## ドライバスクリプト
+**まず 1 を試すなら実験的機能に注意。** Julia 1.12 の [Pkg Apps](https://pkgdocs.julialang.org/v1/apps/) 依存で、コマンド名・インストール手順・挙動は変わる可能性がある。**安定運用は 2 (CLI スクリプト)。**
 
-`runner.jl` で動かすスクリプトは、`Main` に次の 2 関数だけを定義する:
+以降: [1. パッケージアプリインストール (実験的)](#1-パッケージアプリインストール-実験的) → [2. CLI (スクリプト)](#2-cli-スクリプト)
+
+## 共通: ドライバスクリプト
+
+分散実行の対象になる Julia スクリプトは、`Main` に次の 2 関数だけを定義する (1/2 どちらでも同じ):
 
 ```julia
 # ワーカー追加**前**に呼ばれる。ENV["DISTRIBUTED_OUTPUT_DIR"] を設定する。
@@ -38,56 +44,190 @@ end
 
 動く最小例: [`templates/script_template.jl`](templates/script_template.jl)。
 
-## クイックスタート
+## 1. パッケージアプリインストール (実験的)
+
+> **実験的:** [Pkg Apps](https://pkgdocs.julialang.org/v1/apps/) は Julia 1.12 でまだ実験的機能。`ParallelRunnerKit` をパッケージとして入れ、`prunner` / `psetup` / `psuggest` を `~/.julia/bin` に登録する方式。**アプリのリポジトリにキットを置かない** のが 2 との違い。
+
+### インストール (一度だけ)
 
 ```bash
-# 1. リモートへ clone + 依存インストール (初回のみ)
-julia --project=. setup.jl --clone HOST1 HOST2 ...
-julia --project=. setup.jl --instantiate HOST1 HOST2 ...
+# ローカル開発中
+julia -e 'using Pkg; Pkg.Apps.develop(path="/path/to/ParallelRunnerKit.jl")'
 
-# 2. コミット後にコード同期
-julia --project=. setup.jl --sync HOST1 HOST2 ...
+# リリース済みコミットから
+# julia -e 'using Pkg; Pkg.Apps.add(url="https://github.com/daihiko-lab/ParallelRunnerKit.jl.git")'
 
-# 3. 実行: ローカル N + リモート各ホスト W ワーカー
-julia --project=. runner.jl --local N HOST1:W HOST2:W ... path/to/script.jl [args...]
+# General Registry 登録後
+# julia -e 'using Pkg; Pkg.Apps.add("ParallelRunnerKit")'
+
+export PATH="$HOME/.julia/bin:$PATH"   # .zshrc 等に恒久化
+prunner --help
 ```
 
-テンプレートで試す:
+| コマンド | 2 のスクリプト相当 | 用途 |
+|----------|-------------------|------|
+| `prunner` | `runner.jl` | 分散実行 |
+| `psetup` | `setup.jl` | clone / sync / cleanup |
+| `psuggest` | `suggest_workers.jl` | ワーカー数の目安 |
+
+### 実行例
+
+**`cd` 先 = 自分の `MyApp.jl/`** (キットの clone 先ではない):
 
 ```bash
-julia --project=. runner.jl --local 2 templates/script_template.jl
+cd ~/projects/MyApp.jl
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+
+psetup --clone HOST1 HOST2 ...
+psetup --instantiate HOST1 HOST2 ...
+psetup --sync HOST1 HOST2 ...
+prunner --local N HOST1:W HOST2:W ... scripts/jobs.jl [args...]
+psuggest --local HOST1 HOST2
 ```
 
-オプション・環境変数の一覧:
+- `julia --project=.` で runner を包む必要はない。カレントディレクトリがプロジェクトルート。
+- 別パスなら `export DISTRIBUTED_PROJECT_ROOT=/path/to/MyApp.jl`。
+
+## 2. CLI (スクリプト)
+
+`runner.jl` / `setup.jl` / `suggest_workers.jl` を **`julia --project=.` 付き** で呼ぶ。キットの `.jl` ファイルがプロジェクトから参照できる必要がある (clone または submodule)。**安定運用向け。**
+
+### 2-a. 自分のアプリに置く (一般的)
 
 ```bash
-julia --project=. runner.jl --help
-julia --project=. setup.jl --help
-julia --project=. suggest_workers.jl --help
-```
-
-## 前提
-
-- macOS (開発・検証はここのみ。他 OS は未検証)
-- リモートへの SSH 鍵認証、Git・Julia がリモートに入っていること
-- 全ホストで同じリポジトリパス (異なる場合は `--remote-path` / `DISTRIBUTED_REMOTE_PROJECT_ROOT`)
-
-## 埋め込み
-
-```bash
+cd MyApp.jl
 git submodule add https://github.com/daihiko-lab/ParallelRunnerKit.jl.git ParallelRunnerKit
+# MyApp.jl/Project.toml に ParallelRunnerKit の [deps] をマージ
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
-このリポジトリの `[deps]` をホストの `Project.toml` にマージし、スクリプトパスに `ParallelRunnerKit/` を付ける (例: `ParallelRunnerKit/runner.jl`)。ドライバには上記の `init_output_dir!` / `main()` を実装する。ワーカーで load するモジュール名がホストの `name` と違う場合は `runner.jl --package NAME`。
+**`MyApp.jl/` にいること** を確認してから:
+
+```bash
+# リモート準備 (初回)
+julia --project=. ParallelRunnerKit/setup.jl --clone HOST1 HOST2 ...
+julia --project=. ParallelRunnerKit/setup.jl --instantiate HOST1 HOST2 ...
+
+# コード同期
+julia --project=. ParallelRunnerKit/setup.jl --sync HOST1 HOST2 ...
+
+# 分散実行
+julia --project=. ParallelRunnerKit/runner.jl --local N HOST1:W HOST2:W ... scripts/jobs.jl [args...]
+
+# ワーカー数の目安
+julia --project=. ParallelRunnerKit/suggest_workers.jl --local HOST1 HOST2
+```
+
+- パスは `ParallelRunnerKit/` 付き (submodule 名が違えば読み替える)。
+- ワーカーで load するモジュール名がホストの `name` と違うときは `--package NAME`。
+
+### 2-b. このリポジトリ単体で試す
+
+キット開発・検証用。パスに `ParallelRunnerKit/` は付けない。
+
+```bash
+git clone https://github.com/daihiko-lab/ParallelRunnerKit.jl.git
+cd ParallelRunnerKit.jl
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
+
+julia --project=. runner.jl --local 2 templates/script_template.jl
+julia --project=. setup.jl --help
+```
+
+ヘルプ:
+
+```bash
+julia --project=. ParallelRunnerKit/runner.jl --help    # 2-a
+julia --project=. runner.jl --help                      # 2-b
+```
+
+## 環境・SSH の基準
+
+リモートホストを使う場合 (1/2 共通)、次を **事前に満たす** こと。
+
+- **1 (パッケージアプリ):** `psetup --check HOST ...`
+- **2 (CLI):** `julia --project=. ParallelRunnerKit/setup.jl --check HOST ...`
+
+### 検証環境
+
+- **開発・検証は macOS のみ** (他 OS は未検証)
+- **Julia 1.12+** をローカルおよび各リモートにインストール
+- ローカルに **Git**、**OpenSSH** (`ssh`)、**rsync** があること
+
+### SSH の基準
+
+| 項目 | 基準 |
+|------|------|
+| 認証 | **鍵認証のみ** (パスワード入力なし)。`BatchMode=yes` 相当で非対話接続できること |
+| 接続確認 | 各ホストで `ssh HOST echo ok` が成功すること |
+| ホスト指定 | `host` または `host:N` (ワーカー数) |
+| カスタム SSH オプション | `export DISTRIBUTED_SSH_OPTS="-o Foo=bar ..."` |
+
+既定の SSH オプション (`DISTRIBUTED_SSH_OPTS` 未設定時): `BatchMode=yes`, `ConnectTimeout=10`, `StrictHostKeyChecking=accept-new`, keepalive 各種。
+
+### リモート側に必要なもの
+
+| 項目 | 基準 |
+|------|------|
+| Julia | リモートにインストール済み。未指定時は自動検出。`--julia PATH` または `JULIA_DISTRIBUTED_EXE` |
+| Git | `setup --clone` / `--sync` 利用時、リモートから `origin` へ SSH で clone/pull できること |
+| リポジトリ配置 | 全ホストで **同じコミット** (runner が自動照合) |
+
+### パス・ディレクトリの基準
+
+| 役割 | 変数 / オプション | 説明 |
+|------|-------------------|------|
+| ローカルのプロジェクトルート | 1: `pwd()` または `DISTRIBUTED_PROJECT_ROOT` / 2: `julia --project=.` のディレクトリ | アプリの `Project.toml` がある場所 |
+| リモートのリポジトリルート | `DISTRIBUTED_REMOTE_PROJECT_ROOT` または `setup --remote-path` | SSH 先の絶対パス (推奨)。未設定時: `~/親/リポジトリ名` |
+| ドライバの出力先 | `ENV["DISTRIBUTED_OUTPUT_DIR"]` | ドライバが `init_output_dir!` で設定 |
+| 実行後に回収するディレクトリ | `DISTRIBUTED_COLLECT_DIRS` | コロン区切り |
+
+```bash
+cd ~/GitHub/MyApp.jl
+psetup --check host1 host2                                           # 1
+# julia --project=. ParallelRunnerKit/setup.jl --check host1 host2  # 2
+```
+
+### 初回セットアップ (リモートあり)
+
+```bash
+# 1 (パッケージアプリ)
+psetup --clone HOST ...
+psetup --instantiate HOST ...
+psetup --check HOST ...
+psetup --sync HOST ...
+
+# 2 (CLI スクリプト): psetup を ParallelRunnerKit/setup.jl に置き換え
+```
+
+ローカルのみ (`--local N` のみ) なら SSH / リモートパスは不要。
+
+### 環境変数 (参照)
+
+| 変数 | 用途 |
+|------|------|
+| `DISTRIBUTED_PROJECT_ROOT` | 1: プロジェクトルートの明示 (既定: カレントディレクトリ) |
+| `DISTRIBUTED_REMOTE_PROJECT_ROOT` | リモート側リポジトリルート |
+| `DISTRIBUTED_SSH_OPTS` | `ssh` / `rsync -e ssh` の追加オプション |
+| `JULIA_DISTRIBUTED_EXE` | リモート Julia の既定パス |
+| `DISTRIBUTED_OUTPUT_DIR` | ドライバ出力・ログの基準パス |
+| `DISTRIBUTED_COLLECT_DIRS` | 実行後に rsync するディレクトリ |
+| `DISTRIBUTED_INIT_DELAY_SEC` | ワーカー追加後の待機秒 (既定 5) |
+| `DISTRIBUTED_SKIP_COLLECT` | `1` でリモートからの結果回収をスキップ |
 
 ## トラブルシューティング
 
 | 問題 | 対処 |
 |------|------|
-| ホスト間で git ハッシュ不一致 | `setup.jl --sync` または `--pull` |
+| git ハッシュ不一致 | 1: `psetup --sync` / 2: `setup.jl --sync` |
 | リモートで Julia 未検出 | `--julia PATH` または `JULIA_DISTRIBUTED_EXE` |
-| 残骸ワーカー | `setup.jl --cleanup` |
+| 残骸ワーカー | 1: `psetup --cleanup` / 2: `setup.jl --cleanup` |
 | `attempt to send to unknown socket` | `DISTRIBUTED_INIT_DELAY_SEC=10` |
+| 1: `prunner` が見つからない | `~/.julia/bin` を PATH に追加 |
+| 1: 別ディレクトリのプロジェクト | `export DISTRIBUTED_PROJECT_ROOT=...` |
+| 2: `runner.jl` が見つからない | アプリルートか、`ParallelRunnerKit/` 付きパスか確認 |
+| SSH が失敗 | 鍵認証と `ssh HOST echo ok`。 [環境・SSH の基準](#環境ssh-の基準) |
+| リモートのパスが合わない | `DISTRIBUTED_REMOTE_PROJECT_ROOT` + `--check` |
 
 ## ライセンス
 
