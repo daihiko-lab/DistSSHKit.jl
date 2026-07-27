@@ -1,0 +1,13 @@
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+# No `ignore` list: runner.jl / setup.jl / suggest_workers.jl are the CLI entry points
+# users actually run, and are currently exercised manually (SSH, real workers) rather
+# than in unit tests. Coverage % reflects that honestly instead of hiding it. See
+# `docs` / issues for a runner.jl smoke-test plan to raise this over time.
