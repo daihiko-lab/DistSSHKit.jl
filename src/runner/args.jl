@@ -150,11 +150,11 @@ end
 function runner_help_text()::String
     """
 Usage:
-  julia --project=. -m SSHRunner runner [options] [hosts...] script.jl [script_args...]
+  julia --project=. -m DistSSHKit runner [options] [hosts...] script.jl [script_args...]
 
 Collect-only (no script):
-  julia --project=. -m SSHRunner runner --collect-missing ROOT HOST [HOST...]
-  julia --project=. -m SSHRunner runner --collect-overwrite ROOT HOST [HOST...]
+  julia --project=. -m DistSSHKit runner --collect-missing ROOT HOST [HOST...]
+  julia --project=. -m DistSSHKit runner --collect-overwrite ROOT HOST [HOST...]
   (aliases: --collect-tree == --collect-missing; --collect-tree-sync == --collect-overwrite)
 
 Options:
@@ -183,19 +183,19 @@ Worker counts:
 
 Examples:
   # Local + remote (9 local + 10 + 8 remote = 27 worker processes)
-  julia --project=. -m SSHRunner runner --local 9 host1:10 host2:8 myscript.jl
+  julia --project=. -m DistSSHKit runner --local 9 host1:10 host2:8 myscript.jl
 
   # Default workers for all remote hosts
-  julia --project=. -m SSHRunner runner --local 9 --workers 10 host1 host2 myscript.jl
+  julia --project=. -m DistSSHKit runner --local 9 --workers 10 host1 host2 myscript.jl
 
   # Local only (9 worker processes)
-  julia --project=. -m SSHRunner runner --local 9 myscript.jl
+  julia --project=. -m DistSSHKit runner --local 9 myscript.jl
 
   # Remote only (master on local, workers on remotes)
-  julia --project=. -m SSHRunner runner host1:10 myscript.jl
+  julia --project=. -m DistSSHKit runner host1:10 myscript.jl
 
   # Pull any file under data/sweep that exists on hosts but not locally (recursive; sweep scripts write here):
-  julia --project=. -m SSHRunner runner --collect-missing data/sweep host1 host2
+  julia --project=. -m DistSSHKit runner --collect-missing data/sweep host1 host2
 
 Note:
   This uses Distributed.jl (multi-process parallelism).

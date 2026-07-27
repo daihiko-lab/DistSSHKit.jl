@@ -1,8 +1,8 @@
 #!/usr/bin/env julia
-# SSHRunner driver script: each worker flips a coin many times and reports
+# DistSSHKit driver script: each worker flips a coin many times and reports
 # how many landed on heads.
-# After Pkg.add:  julia --project=. -m SSHRunner demo install
-# Then run:       julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
+# After Pkg.add:  julia --project=. -m DistSSHKit demo install
+# Then run:       julia --project=. -m DistSSHKit runner --local 2 demos/coin_flip.jl
 
 using Distributed
 

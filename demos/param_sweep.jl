@@ -1,8 +1,8 @@
 #!/usr/bin/env julia
-# SSHRunner driver script: run the same computation for many parameter values,
+# DistSSHKit driver script: run the same computation for many parameter values,
 # spread across workers, and save all the results to one CSV file.
-# After Pkg.add:  julia --project=. -m SSHRunner demo install
-# Then run:       julia --project=. -m SSHRunner runner --local 4 demos/param_sweep.jl
+# After Pkg.add:  julia --project=. -m DistSSHKit demo install
+# Then run:       julia --project=. -m DistSSHKit runner --local 4 demos/param_sweep.jl
 #
 # Output: demos/output/sweep_results.csv
 

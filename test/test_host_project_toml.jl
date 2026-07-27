@@ -8,11 +8,11 @@ using Test
     kit_deps = get(TOML.parsefile(kit_toml), "deps", Dict{String,String}())
     parent = dirname(kit_root)
     parent_proj = joinpath(parent, "Project.toml")
-    nested_kit = joinpath(parent, "SSHRunner", "Project.toml")
-    # Monorepo: `.../App/SSHRunner/test` → kit at `App/SSHRunner`, host `App/Project.toml`.
-    # Standalone kit repo: parent has no nested `SSHRunner/Project.toml`; only assert kit deps exist.
+    nested_kit = joinpath(parent, "DistSSHKit", "Project.toml")
+    # Monorepo: `.../App/DistSSHKit/test` → kit at `App/DistSSHKit`, host `App/Project.toml`.
+    # Standalone kit repo: parent has no nested `DistSSHKit/Project.toml`; only assert kit deps exist.
     skip_merge_check = ["Distributed"]
-    if isfile(parent_proj) && isfile(nested_kit) && abspath(kit_root) == abspath(joinpath(parent, "SSHRunner"))
+    if isfile(parent_proj) && isfile(nested_kit) && abspath(kit_root) == abspath(joinpath(parent, "DistSSHKit"))
         root_deps = get(TOML.parsefile(parent_proj), "deps", Dict{String,String}())
         for (name, uuid) in kit_deps
             n = String(name)

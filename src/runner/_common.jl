@@ -1,6 +1,6 @@
 # Loaded once from runner.jl before other runner/*.jl fragments.
-# Do not `include` SSHRunner here — that duplicates `runner.jl` and triggers IDE DuplicateInclude.
-using .SSHRunner
+# Do not `include` DistSSHKit here — that duplicates `runner.jl` and triggers IDE DuplicateInclude.
+using .DistSSHKit
 using Dates
 using Distributed
 

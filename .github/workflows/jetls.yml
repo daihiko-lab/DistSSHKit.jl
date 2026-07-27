@@ -44,8 +44,8 @@ jobs:
         run: |
           shopt -s nullglob
           # Entry scripts only: jetls follows `include()` (do not list src/runner/*.jl or
-          # src/SSHRunner/*.jl — those fragments are loaded by runner.jl / SSHRunner.jl).
+          # src/DistSSHKit/*.jl — those fragments are loaded by runner.jl / DistSSHKit.jl).
           jetls --threads=auto -- check --exit-severity=error --progress=none \
             demos/*.jl \
-            src/SSHRunner.jl src/runner.jl src/setup.jl src/suggest_workers.jl \
+            src/DistSSHKit.jl src/runner.jl src/setup.jl src/suggest_workers.jl \
             test/*.jl test/fixtures/*.jl

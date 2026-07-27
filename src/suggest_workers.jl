@@ -6,7 +6,7 @@ Load the project package on each host and measure RSS as a per-worker
 baseline, then suggest worker counts from RAM and CPU constraints.
 
 Usage (via `Pkg.add`/`Pkg.develop`):
-  julia --project=. -m SSHRunner suggest-workers [options] [--local] [hosts...]
+  julia --project=. -m DistSSHKit suggest-workers [options] [--local] [hosts...]
 
 Options:
   -l, --local         Include localhost in suggestion (omit for remote-only)
@@ -16,12 +16,12 @@ Options:
   -h, --help
 
 Examples:
-  julia --project=. -m SSHRunner suggest-workers --local host1 host2
-  julia --project=. -m SSHRunner suggest-workers --gb-per-worker 1.5 host1
+  julia --project=. -m DistSSHKit suggest-workers --local host1 host2
+  julia --project=. -m DistSSHKit suggest-workers --gb-per-worker 1.5 host1
 """
 
-isdefined(@__MODULE__, :SSHRunner) || include(joinpath(@__DIR__, "SSHRunner.jl"))
-using .SSHRunner
+isdefined(@__MODULE__, :DistSSHKit) || include(joinpath(@__DIR__, "DistSSHKit.jl"))
+using .DistSSHKit
 
 const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
     runner_kit_project_root(@__DIR__)
@@ -250,16 +250,16 @@ function suggest_workers_main()
     println("Command template:")
     worker_args = "$(local_arg)$(remote_arg)"
     if isempty(worker_args)
-        println("  julia --project=. -m SSHRunner runner <script.jl> <args>")
+        println("  julia --project=. -m DistSSHKit runner <script.jl> <args>")
     else
-        println("  julia --project=. -m SSHRunner runner \\")
+        println("  julia --project=. -m DistSSHKit runner \\")
         println("    $(rstrip(worker_args)) \\")
         println("    <script.jl> <args>")
     end
     println("=" ^ 60)
 end
 
-if get(ENV, "SSHRUNNER_KIT_CLI_INCLUDE", "") != "1" &&
+if get(ENV, "DIST_SSH_KIT_CLI_INCLUDE", "") != "1" &&
    !isempty(PROGRAM_FILE) &&
    abspath(PROGRAM_FILE) == abspath(@__FILE__)
     suggest_workers_main()

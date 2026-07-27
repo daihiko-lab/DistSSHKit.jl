@@ -20,13 +20,13 @@ Workflow:
 
 Usage (via `Pkg.add`/`Pkg.develop`):
   # Remote hosts only (master process on local, workers on remotes)
-  julia --project=. -m SSHRunner runner host1:10 host2:10 script.jl --args
+  julia --project=. -m DistSSHKit runner host1:10 host2:10 script.jl --args
 
   # Local + remote (9 local workers + 20 remote = 29 total worker processes)
-  julia --project=. -m SSHRunner runner --local 9 host1:10 host2:10 script.jl --args
+  julia --project=. -m DistSSHKit runner --local 9 host1:10 host2:10 script.jl --args
 
   # Local only (9 worker processes)
-  julia --project=. -m SSHRunner runner --local 9 script.jl --args
+  julia --project=. -m DistSSHKit runner --local 9 script.jl --args
 
 Host specification:
   hostname        Use default worker count (1 or --workers N)
@@ -53,7 +53,7 @@ Output:
 
 Environment variables:
   DISTRIBUTED_SSH_OPTS       Custom SSH options (space-separated)
-  DISTRIBUTED_COLLECT_DIRS   Colon-separated dirs to rsync after run (repo-relative or abs); see SSHRunner.distributed_collect_root_dirs
+  DISTRIBUTED_COLLECT_DIRS   Colon-separated dirs to rsync after run (repo-relative or abs); see DistSSHKit.distributed_collect_root_dirs
   JULIA_DISTRIBUTED_EXE      Default Julia path for remote hosts
 
 Prerequisites:
@@ -64,23 +64,23 @@ Prerequisites:
 
 Example (full workflow):
   # 1. Sync code to remotes
-  julia --project=. -m SSHRunner setup --sync host1 host2
+  julia --project=. -m DistSSHKit setup --sync host1 host2
 
   # 2. Run a driver script with 29 worker processes (9 local + 10 + 10 remote)
-  julia --project=. -m SSHRunner runner --local 9 host1:10 host2:10 \\
+  julia --project=. -m DistSSHKit runner --local 9 host1:10 host2:10 \\
       scripts/jobs.jl --config configs/cell.json
 
-See also: `julia -m SSHRunner setup --help`, README.md
+See also: `julia -m DistSSHKit setup --help`, README.md
 """
 
 using Distributed
 using Dates
 using Pkg
 
-# When loaded via `Pkg.add`/`Pkg.develop` (real package, e.g. through `SSHRunner.runner()`),
-# `SSHRunner` is already bound in this module (`Main`); skip the vendored/script re-include.
-isdefined(@__MODULE__, :SSHRunner) || include(joinpath(@__DIR__, "SSHRunner.jl"))
-using .SSHRunner
+# When loaded via `Pkg.add`/`Pkg.develop` (real package, e.g. through `DistSSHKit.runner()`),
+# `DistSSHKit` is already bound in this module (`Main`); skip the vendored/script re-include.
+isdefined(@__MODULE__, :DistSSHKit) || include(joinpath(@__DIR__, "DistSSHKit.jl"))
+using .DistSSHKit
 
 const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
     runner_kit_project_root(@__DIR__)
@@ -176,7 +176,7 @@ function runner_main()::Cint
         s == "." ? basename(abspath(String(proj_dir))) : s
     end
     writeln_both("Project: $(proj_disp)")
-    writeln_both("SSHRunner: $(ssh_runner_version())")
+    writeln_both("DistSSHKit: $(dist_ssh_kit_version())")
     app_git = get_local_git_hash(proj_dir; short=8)
     writeln_both("Application git (project dir): $(app_git === nothing ? "unavailable" : app_git)")
     writeln_both("")
@@ -194,7 +194,7 @@ function runner_main()::Cint
                 writeln_both("Git hash mismatch on $(join(mismatches, ", "))")
                 writeln_both("")
                 writeln_both("To sync, run:")
-                print_info("  julia --project=. -m SSHRunner setup --sync $(join(mismatches, " "))\n")
+                print_info("  julia --project=. -m DistSSHKit setup --sync $(join(mismatches, " "))\n")
                 writeln_both("")
                 writeln_both("Or skip check (not recommended):")
                 print_warn("  --skip-hash-check\n")
@@ -231,7 +231,7 @@ function runner_main()::Cint
     return 0
 end
 
-if get(ENV, "SSHRUNNER_KIT_CLI_INCLUDE", "") != "1" &&
+if get(ENV, "DIST_SSH_KIT_CLI_INCLUDE", "") != "1" &&
    !isempty(PROGRAM_FILE) &&
    abspath(PROGRAM_FILE) == abspath(@__FILE__)
     exit(runner_main())
