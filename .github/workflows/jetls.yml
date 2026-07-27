@@ -44,4 +44,4 @@ jobs:
         run: |
           shopt -s nullglob
           jetls --threads=auto -- check --exit-severity=error --progress=none \
-            *.jl src/*.jl test/*.jl test/fixtures/*.jl
+            *.jl src/*.jl src/SSHRunner/*.jl src/runner/*.jl test/*.jl test/fixtures/*.jl

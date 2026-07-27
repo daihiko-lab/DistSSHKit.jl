@@ -6,6 +6,11 @@
 #   julia --project=. test/runtests.jl
 
 using Test
+
+isdefined(@__MODULE__, :SSHRunner) || include(joinpath(@__DIR__, "..", "src", "SSHRunner.jl"))
+using .SSHRunner
+
 include(joinpath(@__DIR__, "test_ssh_runner.jl"))
+include(joinpath(@__DIR__, "test_runner_args.jl"))
 include(joinpath(@__DIR__, "test_runner_smoke.jl"))
 include(joinpath(@__DIR__, "test_pkg_add_smoke.jl"))
