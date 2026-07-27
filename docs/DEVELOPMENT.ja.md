@@ -1,128 +1,86 @@
 # `ParallelRunnerKit/` 開発者向けメモ
 
-このドキュメントは、将来 `ParallelRunnerKit/` を再利用可能なパッケージ (仮称: `DistributedRunner.jl`) として切り出すための意図と設計上の制約を記録したもの。何が汎用で何がプロジェクト依存か、分離を実用化するために何を変える必要があるか、を理解したい開発者向け。
+`ParallelRunnerKit/` を将来再利用可能なパッケージ (仮称 `DistributedRunner.jl`) として切り出すための設計メモ。開発者向け専用。利用者向けドキュメントは [README.ja.md](../README.ja.md)。
 
 English: [DEVELOPMENT.md](DEVELOPMENT.md)
 
-利用者向けのドキュメントは [README.ja.md](../README.ja.md) にある。このファイルは内部 / 将来の開発者向けの参照用。
-
-**動作環境:** メンテナの開発・テストは **macOS のみ**。実装の一部 (例: リモート RAM 取得) は Linux 向けの分岐がコード上あるが、このツリーでは **macOS 以外の動作は検証しない**。
+**動作環境:** 開発・テストは **macOS のみ**。macOS 以外の動作は検証しない。
 
 **配布の切り分け:**
-- **分散だけ足したい:** ほぼ **`ParallelRunnerKit/` をそのままコピー**し、スクリプト契約に加え **`ParallelRunnerKit/Project.toml`** の `[deps]` をアプリ側環境へマージ (または同等の依存を宣言)、必要なら **`--package NAME`** を使う (シミュレーションコードは別リポジトリのままでも可)。
-- **シミュだけ欲しい:** **`ParallelRunnerKit/` を丸ごと削除**してよい。ホスト側の `Project.toml` はこの Kit を参照する必要はない (README のリンク文だけ不要なら削る)。
+- **分散だけ足したい:** `ParallelRunnerKit/` をそのままコピーし、スクリプト契約 (`init_output_dir!`, `main()`) を満たし、`Project.toml` の `[deps]` を自分の環境にマージする。ワーカーでロードするモジュール名がルート `Project.toml` の `name` と違うなら `--package NAME` を使う。
+- **シミュだけ欲しい:** `ParallelRunnerKit/` を丸ごと削除してよい。他のファイルはこの Kit を名前で参照していない。
 
-**フォルダ名:** Julia のモジュール名・スタブ `Project.toml` の `name` (`ParallelRunnerKit`) と揃えてあり、単独リポジトリとして **[daihiko-lab/ParallelRunnerKit.jl](https://github.com/daihiko-lab/ParallelRunnerKit.jl)** で公開する想定のレイアウトになっている。`resolve_pkg_project_dir` は **`name == ParallelRunnerKit`** でスタブ判定するので、アプリ側の `Project.toml` 解決はディレクトリ名に依存しない。
+**フォルダ名:** モジュール名・スタブ `Project.toml` の `name` と揃えて `ParallelRunnerKit` のままにする。公開先: **[daihiko-lab/ParallelRunnerKit.jl](https://github.com/daihiko-lab/ParallelRunnerKit.jl)**。`resolve_pkg_project_dir` は `name == "ParallelRunnerKit"` でスタブ判定するので、ディレクトリ名には依存しない。
 
-## 親リポ (`TCNashAgentsEvo.jl-dev`) でのサブモジュール
+## ホストアプリへの取り込み
 
-[TCNashAgentsEvo.jl-dev](https://github.com/daihiko-lab/TCNashAgentsEvo.jl-dev) は、このリポジトリを `ParallelRunnerKit/` として **git サブモジュール**で取り込んでいる。親を clone するとき:
+**git サブモジュールとして:**
 
 ```bash
-git clone --recurse-submodules https://github.com/daihiko-lab/TCNashAgentsEvo.jl-dev.git
+git clone --recurse-submodules <親リポジトリの URL>
 # すでに clone 済みでサブモジュールが空のとき:
 git submodule update --init --recursive
 ```
 
-**親が指す Kit のコミットを上げる:** まず **このリポジトリ** の `main` に push したうえで、親の作業ツリーで:
+固定コミットを上げる: このリポジトリに push した後、`cd ParallelRunnerKit && git pull origin main && cd .. && git add ParallelRunnerKit && git commit -m "Bump ParallelRunnerKit submodule"`。
 
-```bash
-cd ParallelRunnerKit && git pull origin main && cd ..
-git add ParallelRunnerKit
-git commit -m "Bump ParallelRunnerKit submodule"
-```
-
-## 埋め込みツリーからの一回限りのミラー (サブモジュールでない場合)
-
-別アプリがリポジトリ内に普通の `ParallelRunnerKit/` ディレクトリとして持っている場合、そのルートから **この** GitHub リポジトリへ中身を送るには `git subtree split` を使う。
-
-```bash
-git subtree split -P ParallelRunnerKit -b parallel-runner-kit-publish
-git push https://github.com/daihiko-lab/ParallelRunnerKit.jl.git parallel-runner-kit-publish:main
-git branch -D parallel-runner-kit-publish
-```
-
-Kit 側の `main` を意図的に書き換えるときだけ `git push ... --force-with-lease` を検討する (常用しない)。
+**サブモジュールなしの一回限りのミラー:** ホストアプリのルートで `git subtree split -P ParallelRunnerKit -b publish-branch` し、そのブランチをこのリポジトリの `main` に push する。`--force-with-lease` はこちらの `main` を意図的に書き換えるときだけ使う。
 
 ## ホストアプリケーションとの結合
 
-`ParallelRunnerKit/` はすでにほぼプロジェクト固有のコードから切り離されている。残っている結合は:
-
 | 場所 | 前提 |
 |----------|-----------------|
-| `runner.jl` | 既定は `Project.toml` の `name` に対応するモジュールをワーカーでロード (`--package` で上書き可); ワーカー起動と `Main.main()` のオーケストレーション |
-| `runner.jl` | include したスクリプトの `init_output_dir!(ARGS)` と `main()` を呼ぶ |
-| `src/ParallelRunnerKit.jl` | 共有ヘルパ (パス・ログ・SSH/git・ランナー CLI・メモリ/git 整合チェック); ホストパッケージを直接 import しない |
-| `setup.jl`  | プロジェクトルートが `Project.toml` を持つ Julia プロジェクトであること |
+| `runner.jl` | `Project.toml` の `name` (または `--package`) でワーカー側のパッケージをロード。include したスクリプトの `init_output_dir!(ARGS)` → `main()` を呼ぶ |
+| `src/ParallelRunnerKit.jl` | 共有ヘルパ (パス・ログ・SSH/git・CLI パース・メモリ/git 整合チェック)。ホストパッケージを import しない |
+| `setup.jl` | プロジェクトルートが `Project.toml` を持つ Julia プロジェクトであること |
 
-どのファイルも **ホストアプリのモジュール名を直接 import していない**。runner は `Project.toml` を読んでパッケージ名を発見するので、**変更なしで他の Julia プロジェクトでも動く**。
+どのファイルもホストアプリを名前で import していない。runner は `Project.toml` を読んでパッケージ名を発見するので、変更なしで他の Julia プロジェクトでも動く。
 
 ## インターフェース契約 (スクリプト側)
 
-`runner.jl` で動かすには、include 後の `Main` に次の 2 関数を定義する必要がある:
+`runner.jl` で動かすスクリプトは、`Main` に次の 2 関数だけを定義する必要がある:
 
 ```julia
-# ワーカーを追加する**前**に呼ばれる。
-# ENV["DISTRIBUTED_OUTPUT_DIR"] を出力先パスに設定する必要がある。
-# スクリプトが結果をマスターのみに保存する場合 (例: pmap でマスター側で
-# マージするケース) は ENV["DISTRIBUTED_SKIP_COLLECT"] = "1" も設定する。
+# ワーカー追加**前**に呼ばれる。ENV["DISTRIBUTED_OUTPUT_DIR"] を設定する必要がある。
+# 結果をマスターのみに保存するなら ENV["DISTRIBUTED_SKIP_COLLECT"] = "1" も設定する。
 function init_output_dir!(args::Vector{String})::String
     ...
 end
 
-# ワーカーが準備完了した**後**に呼ばれる。
-# nworkers() / workers() を見て自分で並列化戦略を決める。
-# pmap か remotecall か @distributed かはここで選ぶ。
+# ワーカー準備完了**後**に呼ばれる。nworkers()/workers() を見て
+# 並列化戦略 (pmap / remotecall / @distributed) を自分で決める。
 function main()
     ...
 end
 ```
 
-この 2 関数のインターフェースが `runner.jl` と実験スクリプト間の唯一の結合点。`ParallelRunnerKit/` を切り出す場合、このインターフェースは安定的に保つ必要がある。
+この 2 関数の契約が `runner.jl` と実験スクリプト間の唯一の結合点。将来切り出す場合もここは安定させる。
 
-## 現状で切り出しを難しくしているもの
+## 切り出しの進捗
 
-1. **デプロイ先がローカル `origin` 中心だった**: ~~`setup.jl` は既知リモートからクローンされた git リポジトリ前提~~。一部解消済み: **`--repo URL`** で clone 元を上書き、**`--remote-path`** / **`DISTRIBUTED_REMOTE_PROJECT_ROOT`** でリモート配置先を上書き (既定は従来どおり `~/親/名前`)。push/pull は引き続きローカル checkout の remote を使う。
-
-2. **`Project.toml` ベースのパッケージロード**: 既定はルートの `name` だが、**`--package NAME`** で上書きできる。将来の独立パッケージ化では、このフラグを主 API に据える余地がある。
-
-3. **環境の二重性**: `ParallelRunnerKit/Project.toml` は **持ち込み用の依存一覧** (スタブパッケージ名) であり、通常の `julia --project=.` のシミュ用ルート環境とは別物。ルート `Project.toml` が依然として正とする。
-
-4. **モジュール境界**: 共有コードは **`src/ParallelRunnerKit.jl`** (`ParallelRunnerKit`) に集約。エントリスクリプトは `include` のあと `using .ParallelRunnerKit`、アクティブ環境にパッケージが入っていれば `using ParallelRunnerKit` に置き換え可能。
-
-## 分離手順 (時が来たら)
-
-1. ~~**共有コードをモジュールに集約**~~ — 完了 (`src/ParallelRunnerKit.jl`)
-2. ~~**`setup.jl` を一般化**~~ — 完了 (`--repo`、`--remote-path` / `DISTRIBUTED_REMOTE_PROJECT_ROOT`)
-3. **`init_output_dir!` / `main()` インターフェースを公開 API として明文化** (軽量な abstract interface か、ドキュメントだけでもよい)
-4. **`DistributedRunner.jl` として登録** (もしくは研究室内利用なら未登録のままでもよい)
-
-すでにリポジトリ内にあるもの: **`src/ParallelRunnerKit.jl`** (正式モジュール)、**`Project.toml`** (依存マニフェスト)、**`templates/script_template.jl`**、**`runner.jl --package`**、**`setup.jl --repo` / `--remote-path`**。
+| 項目 | 状況 |
+|---|---|
+| 共有コードのモジュール化 | 完了 — `src/ParallelRunnerKit.jl` |
+| 任意のリモート URL / パス | 完了 — `setup.jl --repo` / `--remote-path`、`DISTRIBUTED_REMOTE_PROJECT_ROOT` |
+| ワーカーモジュール名の上書き | 完了 — `runner.jl --package NAME` |
+| `init_output_dir!`/`main()` を公開 API として明文化 | 未着手 (軽量な abstract interface でもよい) |
+| `DistributedRunner.jl` として登録 | 未着手 (研究室内利用なら未登録のままでもよい) |
+| `ParallelRunnerKit/Project.toml` は持ち込み専用でアプリの環境ではない | 設計通り。スタブ名は未登録 |
 
 ## バージョン管理と再現性
 
-**いま (ベンダードツリー):**
-
-- **`ParallelRunnerKit/Project.toml` の `version`** がキットのセマンティックバージョン。 **`parallel_runner_kit_version()`** / **`PARALLEL_RUNNER_KIT_VERSION`** として公開され、**`runner.jl`** 起動時に解決したアプリ側 **`Project.toml`** とあわせてログに出る。
-- **`runner.jl`** はアプリ側プロジェクトディレクトリ (ワーカーが `activate` する環境) の **git 短縮ハッシュ** をログに出す。リモート追加前でもログとコミットを対応づけやすい。
-- **リモート利用時**は従来どおり **`check_git_hashes`** が SSH ワーカー利用時に **完全同一コミット** を要求する (**`--skip-hash-check`** で無効化可能)。ローカル側は **`DISTRIBUTED_PROJECT_ROOT`** (既定はリポジトリルート)、リモート側は **`DISTRIBUTED_REMOTE_PROJECT_ROOT`** があればそれを使い、なければローカルと同じ絶対パス (従来の同一パス前提)。
-
-**あとから厳しくする候補:**
-
-- **ローカル検証 (リポ内に CI は置かない):** リポジトリルートで `julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.test(; coverage=false)'` と `julia --project=. ParallelRunnerKit/test/runtests.jl`。後者は (**ほぼ** すべての) **`ParallelRunnerKit/Project.toml`** の **`[deps]`** がルート **`Project.toml`** に **同じ UUID** で載っていることを検証する。**`Distributed`** だけ除外する。Julia 同梱の stdlibであり、現在の **`Pkg.resolve`** ではルート **`[deps]`** に並べても Registry 依存としては解決できない。ランナーは **`using Distributed`** で同梱版を読めば足りる。
-- **リリース運用:** `Project.toml` の `version` と一致する git タグ、**`CHANGELOG.md`**、タグとバージョン不一致で CI を落とす、など。
-- **環境の固定:** 各ホストで同じ **`Manifest.toml`** を使う (または `setup.jl` で `Pkg.resolve` を前提化する) ことで、**アプリのコミットが同じでも依存解決が食い違う**事故を防ぐ。
-- **ワーカの自己申告:** `using` 後に各ワーカが **`VERSION`**・プロジェクトパス・**`parallel_runner_kit_version()`** を一度出すオプションで、取り残しや古い depot を検知する。
-- **運用ポリシー:** **`--skip-hash-check`** は監査用に限定し、本番設定では禁止する、など。
+- `Project.toml` の `version` は `parallel_runner_kit_version()` / `PARALLEL_RUNNER_KIT_VERSION` として公開され、`runner.jl` 起動時にログに出る。
+- `runner.jl` はアプリ側プロジェクトディレクトリの git 短縮ハッシュをログに出す。
+- SSH ワーカー利用時は `check_git_hashes` が完全同一コミットを要求する (`--skip-hash-check` で無効化可)。リモートルートは `DISTRIBUTED_REMOTE_PROJECT_ROOT` があればそれ、なければローカルと同じ絶対パス。
+- **CI:** GitHub Actions (`.github/workflows/CI.yml`) が Julia **1.12** (カバレッジあり) と **1.13** (安定版が出るまでは prerelease チャネル) で `Pkg.test` を回す。ローカルでは `julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.test(; coverage=false)'`。テストはモノレポ配置で `ParallelRunnerKit/Project.toml` の `[deps]` (ほぼ全て) がルート `Project.toml` に同じ UUID で載っていることも検証する。`Distributed` は Julia 同梱 stdlib のため除外。SSH / リモート探査は CI 対象外。
+- **今後の候補:** バージョンと一致する git タグ + `CHANGELOG.md`、厳密な環境固定用の `Manifest.toml` コミット、`using` 後のワーカー自己申告、`--skip-hash-check` を本番では監査用限定にする運用。
 
 ## やらないこと
 
-- シミュレーション固有のロジック (`SimulationConfig`、結果フォーマットなど) を `ParallelRunnerKit/` に**入れない**。runner はシミュレーションに対して中立であり続けるべき。
-- 非 Julia ワーカーや非 SSH トランスポートを**サポートしない**。スコープが膨張して保守が辛くなる。
-- 現在のハートビート + 接続安定化待ち以上の自動リトライや fault-tolerance を**追加しない**。本物の fault-tolerance (失敗タスクの再キュー) は別問題で、`pmap` のエラー処理がスクリプトレベルで既にカバーしている。
+- シミュレーション固有のロジック (`SimulationConfig`、結果フォーマットなど) を入れない。runner はシミュレーションに中立であり続ける。
+- 非 Julia ワーカーや非 SSH トランスポートはサポートしない。
+- 現在のハートビート + 接続安定化待ち以上の自動リトライ/fault-tolerance は追加しない。失敗タスクの再キューは `pmap` のエラー処理がスクリプト側で担う。
 
-## Julia 1.12 の安定性メモ
+## Julia 1.12+ の安定性メモ
 
-Julia 1.12 で `tunnel=true` + 多数の SSH ワーカーという組み合わせは、`addprocs` がすべての TCP 接続登録完了前に return してしまう競合を起こすことがある。`runner.jl` では `DISTRIBUTED_INIT_DELAY_SEC` (デフォルト 5 秒) とワーカーごとの ping リトライ (デフォルト 6 回) で回避している。
-
-パッケージ化する場合、この回避策は目立つ場所に明記し、API レベルで設定可能にすることを検討すべき。
+`tunnel=true` + 多数の SSH ワーカーでは、`addprocs` が全 TCP 接続の登録完了前に return してしまうことがある。`runner.jl` は `DISTRIBUTED_INIT_DELAY_SEC` (既定 5 秒) とワーカーごとの ping リトライ (既定 6 回) で回避している。1.13 でも実機のマルチホスト実行で問題ないと確認できるまでは有効と考えてよい。

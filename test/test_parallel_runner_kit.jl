@@ -4,6 +4,37 @@ using Test
     include(joinpath(@__DIR__, "..", "src", "ParallelRunnerKit.jl"))
     using .ParallelRunnerKit
 
+    # -- short_path --------------------------------------------------------
+    let home = expanduser("~")
+        @test short_path(joinpath(home, "foo", "bar")) == joinpath("~", "foo", "bar")
+        @test short_path("/not/under/home") == "/not/under/home"
+    end
+
+    # -- _project_toml_version ---------------------------------------------
+    mktempdir() do tmp
+        d = abspath(string(tmp))
+        @test ParallelRunnerKit._project_toml_version(joinpath(d, "Project.toml")) === nothing
+        write(joinpath(d, "Project.toml"), "name = \"Foo\"\n")
+        @test ParallelRunnerKit._project_toml_version(joinpath(d, "Project.toml")) === nothing
+        write(joinpath(d, "Project.toml"), "name = \"Foo\"\nversion = \"1.2.3\"\n")
+        @test ParallelRunnerKit._project_toml_version(joinpath(d, "Project.toml")) == v"1.2.3"
+        write(joinpath(d, "Project.toml"), "version = \"not-a-version\"\n")
+        @test ParallelRunnerKit._project_toml_version(joinpath(d, "Project.toml")) === nothing
+    end
+
+    # -- resolve_pkg_project_dir: plain hit and fallback --------------------
+    mktempdir() do tmp
+        d = abspath(string(tmp))
+        write(joinpath(d, "Project.toml"), "name = \"SoloApp\"\n")
+        @test resolve_pkg_project_dir(d) == d
+    end
+    mktempdir() do tmp
+        d = abspath(string(tmp))
+        nested = joinpath(d, "a", "b", "c")
+        mkpath(nested)
+        @test resolve_pkg_project_dir(nested) == dirname(nested)
+    end
+
     mktempdir() do tmp
         d = abspath(string(tmp))
         @test project_package_name(d) === nothing
@@ -129,6 +160,146 @@ using Test
             @test ParallelRunnerKit.distributed_collect_root_dirs(sd, repo) ==
                 String[abspath(joinpath(repo, "solo"))]
         end
+    end
+
+    # -- build_ssh_opts ------------------------------------------------------
+    withenv("DISTRIBUTED_SSH_OPTS" => nothing) do
+        opts = ParallelRunnerKit.build_ssh_opts()
+        @test "-o" in opts
+        @test "BatchMode=yes" in opts
+    end
+    withenv("DISTRIBUTED_SSH_OPTS" => "-o Foo=bar -o Baz=qux") do
+        @test ParallelRunnerKit.build_ssh_opts() == ["-o", "Foo=bar", "-o", "Baz=qux"]
+    end
+
+    # -- estimate_worker_memory_gb / estimate_available_gb -------------------
+    @test ParallelRunnerKit.estimate_worker_memory_gb() > 0
+    let (total, avail) = ParallelRunnerKit.estimate_available_gb()
+        @test total > 0
+        @test avail > 0
+        @test avail <= total || avail == total * 0.5
+    end
+
+    # -- get_local_resources ---------------------------------------------
+    let r = ParallelRunnerKit.get_local_resources()
+        @test r.total_gb > 0
+        @test r.nproc >= 1
+    end
+
+    # -- _parse_host_workers_spec ---------------------------------------
+    @test ParallelRunnerKit._parse_host_workers_spec("host-a") == ("host-a", nothing)
+    @test ParallelRunnerKit._parse_host_workers_spec("host-a:10") == ("host-a", 10)
+
+    # -- TeeIO ---------------------------------------------------------------
+    let primary = IOBuffer(), secondary = IOBuffer()
+        tee = ParallelRunnerKit.TeeIO(primary, secondary)
+        write(tee, Vector{UInt8}(codeunits("line1\r")))  # \r discards buffered line (progress-bar overwrite)
+        write(tee, Vector{UInt8}(codeunits("line2\n")))
+        write(tee, UInt8['a', 'b', 0x0a])
+        flush(tee)
+        @test String(take!(primary)) == "line1\rline2\nab\n"
+        @test String(take!(secondary)) == "line2\nab\n"
+    end
+    let primary = IOBuffer(), secondary = IOBuffer()
+        tee = ParallelRunnerKit.TeeIO(primary, secondary)
+        write(tee, Vector{UInt8}(codeunits("partial")))  # no trailing newline yet
+        @test String(take!(secondary)) == ""
+        flush(tee)                     # flush should emit the trailing partial line
+        @test String(take!(secondary)) == "partial"
+    end
+    let primary = IOBuffer()
+        tee = ParallelRunnerKit.TeeIO(primary, nothing)
+        write(tee, Vector{UInt8}(codeunits("hello\n")))
+        @test String(take!(primary)) == "hello\n"
+    end
+
+    # -- parse_runner_args: basic options -----------------------------------
+    withenv("JULIA_DISTRIBUTED_EXE" => nothing) do
+        let r = ParallelRunnerKit.parse_runner_args(["--help"])
+            @test r.help == true
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["-h"])
+            @test r.help == true
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--local", "4", "myscript.jl", "a", "b"])
+            @test r.local_workers == 4
+            @test r.script_path == "myscript.jl"
+            @test r.script_args == ["a", "b"]
+            @test r.help == false
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--workers", "3", "host1", "host2:5", "s.jl"])
+            @test r.default_workers == 3
+            @test r.hosts == [("host1", nothing), ("host2", 5)]
+            @test r.script_path == "s.jl"
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--julia", "/usr/bin/julia", "s.jl"])
+            @test r.julia == "/usr/bin/julia"
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--julia", "auto", "s.jl"])
+            @test r.julia === nothing
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--skip-hash-check", "s.jl"])
+            @test r.skip_hash_check == true
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--no-hash-check", "s.jl"])
+            @test r.skip_hash_check == true
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--no-log", "s.jl"])
+            @test r.enable_log == false
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--log-dir", "/tmp/logs", "s.jl"])
+            @test r.log_dir == "/tmp/logs"
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--package", "MyPkg", "s.jl"])
+            @test r.explicit_package == "MyPkg"
+        end
+        let r = ParallelRunnerKit.parse_runner_args(["--package", "  ", "s.jl"])
+            @test r.explicit_package === nothing
+        end
+        let r = ParallelRunnerKit.parse_runner_args(String[])
+            @test r.script_path === nothing
+            @test r.help == false
+        end
+    end
+    withenv("JULIA_DISTRIBUTED_EXE" => "/opt/custom/julia") do
+        let r = ParallelRunnerKit.parse_runner_args(["s.jl"])
+            @test r.julia == "/opt/custom/julia"
+        end
+    end
+
+    # -- runner_help_text ----------------------------------------------
+    let txt = ParallelRunnerKit.runner_help_text()
+        @test occursin("Usage:", txt)
+        @test occursin("--collect-missing", txt)
+        @test occursin("JULIA_DISTRIBUTED_EXE", txt)
+    end
+
+    # -- get_local_git_hash / clone_url_from_local_origin / check_git_hashes
+    mktempdir() do tmp
+        d = abspath(string(tmp))
+        @test ParallelRunnerKit.get_local_git_hash(d) === nothing
+        @test ParallelRunnerKit.clone_url_from_local_origin(d) === nothing
+        ok_flag, mismatches = ParallelRunnerKit.check_git_hashes(String[], d)
+        @test ok_flag == true
+        @test mismatches == String[]
+
+        run(Cmd(["git", "-C", d, "init", "-q"]))
+        run(Cmd(["git", "-C", d, "config", "user.email", "test@example.com"]))
+        run(Cmd(["git", "-C", d, "config", "user.name", "Test"]))
+        write(joinpath(d, "f.txt"), "hi")
+        run(Cmd(["git", "-C", d, "add", "f.txt"]))
+        run(Cmd(["git", "-C", d, "commit", "-q", "-m", "init"]))
+
+        full = ParallelRunnerKit.get_local_git_hash(d)
+        @test full isa String
+        @test full isa String && length(full) == 40
+        short = ParallelRunnerKit.get_local_git_hash(d; short=8)
+        @test short isa String
+        @test short isa String && length(short) == 8
+        @test full isa String && short isa String && startswith(full, short)
+
+        run(Cmd(["git", "-C", d, "remote", "add", "origin", "https://github.com/org/App.jl.git"]))
+        @test ParallelRunnerKit.clone_url_from_local_origin(d) == "git@github.com:org/App.jl.git"
     end
 end
 

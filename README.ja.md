@@ -1,5 +1,9 @@
 # ParallelRunnerKit.jl
 
+[![CI](https://github.com/daihiko-lab/ParallelRunnerKit.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/ParallelRunnerKit.jl/actions/workflows/CI.yml)
+[![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **状態:** 研究室で **開発途上** です。**実際のシミュレーション実験** を通じて動作を確認している段階であり、インターフェース・スクリプト・運用上の注意点は、安定版リリースが明示されるまでは **変更されうる** ものとして扱ってください。
 
 Distributed.jl によるマルチプロセス並列で、**任意のドライバ** Julia スクリプト (例: `scripts/jobs.jl` と独自の CLI) をローカルおよびリモートのワーカーに分散実行する (マルチスレッドではない)。

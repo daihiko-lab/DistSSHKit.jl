@@ -1,5 +1,9 @@
 # ParallelRunnerKit.jl
 
+[![CI](https://github.com/daihiko-lab/ParallelRunnerKit.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/ParallelRunnerKit.jl/actions/workflows/CI.yml)
+[![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 **Status:** Under active development in our lab. We are still **confirming behaviour through real simulation experiments**; treat interfaces, scripts, and operational notes as **subject to change** until a stable release line is declared.
 
 Parallel execution of Julia **driver scripts** (for example `scripts/jobs.jl` with your own CLI) across local and remote worker processes using Distributed.jl (multi-process parallelism, not multi-threading).

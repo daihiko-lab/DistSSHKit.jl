@@ -3,17 +3,23 @@
 Clone, check prerequisites, and sync code to remote hosts for distributed execution.
 
 Usage:
-  julia --project=. ParallelRunnerKit/setup.jl                    # Show requirements
-  julia --project=. ParallelRunnerKit/setup.jl --clone hosts...   # Clone repository
-  julia --project=. ParallelRunnerKit/setup.jl --delete hosts...  # Delete remote repositories
-  julia --project=. ParallelRunnerKit/setup.jl --check hosts...   # Check prerequisites
-  julia --project=. ParallelRunnerKit/setup.jl --pull hosts...    # Pull on all hosts
-  julia --project=. ParallelRunnerKit/setup.jl --sync hosts...    # Push + pull
+  julia --project=. ParallelRunnerKit/setup.jl                     # Show requirements
+  julia --project=. ParallelRunnerKit/setup.jl --clone hosts...    # Clone repository
+  julia --project=. ParallelRunnerKit/setup.jl --delete hosts...   # Delete remote repositories
+  julia --project=. ParallelRunnerKit/setup.jl --check hosts...    # Check prerequisites
+  julia --project=. ParallelRunnerKit/setup.jl --pull hosts...     # Pull on all hosts
+  julia --project=. ParallelRunnerKit/setup.jl --sync hosts...     # Push + pull
+  julia --project=. ParallelRunnerKit/setup.jl --instantiate hosts... # Pkg.instantiate on remotes
+  julia --project=. ParallelRunnerKit/setup.jl --cleanup hosts...  # Kill stale worker processes
 
 Optional overrides:
   --repo URL              Clone URL (default: local `origin`, HTTPS GitHub → SSH)
   --remote-path PATH      Repo root on remotes (default: ~/Parent/Name, or
-                          DISTRIBUTED_REMOTE_PROJECT_ROOT when set)
+                          DISTRIBUTED_REMOTE_PROJECT_ROOT when set). Alias: --remote-dir
+  --julia PATH            Julia path for remote hosts (default: JULIA_DISTRIBUTED_EXE or auto-detect)
+  -h, --help              Show full help (`--help`)
+
+See `--help` for the complete option/environment reference.
 """
 
 include(joinpath(@__DIR__, "src", "ParallelRunnerKit.jl"))

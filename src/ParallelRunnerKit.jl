@@ -206,6 +206,16 @@ function Base.write(io::TeeIO, b::UInt8)
 end
 
 function Base.write(io::TeeIO, b::AbstractVector{UInt8})
+    return _teeio_write_bytes(io, b)
+end
+
+# `AbstractVector{UInt8}` alone is ambiguous with Base's `write(::IO, ::StridedArray)`
+# for `Vector{UInt8}` / other strided inputs; this narrower method disambiguates.
+function Base.write(io::TeeIO, b::StridedVector{UInt8})
+    return _teeio_write_bytes(io, b)
+end
+
+function _teeio_write_bytes(io::TeeIO, b::AbstractVector{UInt8})
     write(io.primary, b)
     sec = io.secondary
     if sec isa IO
