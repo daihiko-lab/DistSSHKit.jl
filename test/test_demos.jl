@@ -8,7 +8,7 @@ function _run_runner_demo(;
     local_workers::Int=1,
 )
     cmd = Cmd(vcat(
-        [julia, "--project=$kit_root", "-m", "SSHRunner", "runner",
+        [julia, "--project=$kit_root", "-m", "DistSSHKit", "runner",
          "--local", string(local_workers), "--no-log", script],
         script_args,
     ))

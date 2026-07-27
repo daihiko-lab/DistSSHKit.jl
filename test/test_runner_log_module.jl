@@ -1,6 +1,6 @@
 using Test
 
-@testset "-m SSHRunner" begin
+@testset "-m DistSSHKit" begin
     kit_root = abspath(joinpath(@__DIR__, ".."))
     fixture = abspath(joinpath(@__DIR__, "fixtures", "runner_local_smoke.jl"))
     julia = joinpath(Sys.BINDIR, Base.julia_exename())
@@ -21,7 +21,7 @@ using Test
         develop_proc = run(pipeline(develop_cmd, stdout=develop_out, stderr=develop_out), wait=true)
         @test develop_proc.exitcode == 0
 
-        cmd = `$julia --project=$proj -m SSHRunner runner --local 2 --log-dir $log_dir $script`
+        cmd = `$julia --project=$proj -m DistSSHKit runner --local 2 --log-dir $log_dir $script`
         _assert_runner_log_output(;
             cmd=setenv(
                 cmd,

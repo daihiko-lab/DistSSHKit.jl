@@ -13,7 +13,7 @@ function runner_collect_tree(local_root::AbstractString, host_names::Vector{Stri
     ssh_cmd_str  = "ssh " * join(SSH_OPTS, " ")
 
     println("============================================================")
-    println(merge ? "SSHRunner collect-overwrite" : "SSHRunner collect-missing")
+    println(merge ? "DistSSHKit collect-overwrite" : "DistSSHKit collect-missing")
     println("============================================================")
     println("local root : ", display_path(local_root, root_disp))
     println("mode       : ", merge ? "full sync (same-named files updated when remote differs)" :

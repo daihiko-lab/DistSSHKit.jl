@@ -3,14 +3,14 @@
 Clone, check prerequisites, and sync code to remote hosts for distributed execution.
 
 Usage (via `Pkg.add`/`Pkg.develop`):
-  julia --project=. -m SSHRunner setup                     # Show requirements
-  julia --project=. -m SSHRunner setup --clone hosts...    # Clone repository
-  julia --project=. -m SSHRunner setup --delete hosts...   # Delete remote repositories
-  julia --project=. -m SSHRunner setup --check hosts...    # Check prerequisites
-  julia --project=. -m SSHRunner setup --pull hosts...     # Pull on all hosts
-  julia --project=. -m SSHRunner setup --sync hosts...     # Push + pull
-  julia --project=. -m SSHRunner setup --instantiate hosts... # Pkg.instantiate on remotes
-  julia --project=. -m SSHRunner setup --cleanup hosts...  # Kill stale worker processes
+  julia --project=. -m DistSSHKit setup                     # Show requirements
+  julia --project=. -m DistSSHKit setup --clone hosts...    # Clone repository
+  julia --project=. -m DistSSHKit setup --delete hosts...   # Delete remote repositories
+  julia --project=. -m DistSSHKit setup --check hosts...    # Check prerequisites
+  julia --project=. -m DistSSHKit setup --pull hosts...     # Pull on all hosts
+  julia --project=. -m DistSSHKit setup --sync hosts...     # Push + pull
+  julia --project=. -m DistSSHKit setup --instantiate hosts... # Pkg.instantiate on remotes
+  julia --project=. -m DistSSHKit setup --cleanup hosts...  # Kill stale worker processes
 
 Optional overrides:
   --repo URL              Clone URL (default: local `origin`, HTTPS GitHub → SSH)
@@ -22,8 +22,8 @@ Optional overrides:
 See `--help` for the complete option/environment reference.
 """
 
-isdefined(@__MODULE__, :SSHRunner) || include(joinpath(@__DIR__, "SSHRunner.jl"))
-using .SSHRunner
+isdefined(@__MODULE__, :DistSSHKit) || include(joinpath(@__DIR__, "DistSSHKit.jl"))
+using .DistSSHKit
 
 const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
     runner_kit_project_root(@__DIR__)
@@ -51,16 +51,16 @@ function show_requirements()
     println()
     print_warn("Initial Setup (example with 3 hosts)")
     println()
-    println("  julia --project=. -m SSHRunner setup \\")
+    println("  julia --project=. -m DistSSHKit setup \\")
     println("    --clone host1 host2 host3")
-    println("  julia --project=. -m SSHRunner setup \\")
+    println("  julia --project=. -m DistSSHKit setup \\")
     println("    --instantiate host1 host2 host3")
-    println("  julia --project=. -m SSHRunner setup \\")
+    println("  julia --project=. -m DistSSHKit setup \\")
     println("    --check host1 host2 host3")
     println()
     print_warn("Different remote path or fork URL")
     println()
-    println("  julia --project=. -m SSHRunner setup \\")
+    println("  julia --project=. -m DistSSHKit setup \\")
     println("    --repo git@github.com:ORG/App.jl.git \\")
     println("    --remote-path /Users/shared/App.jl \\")
     println("    --clone host1 host2")
@@ -68,9 +68,9 @@ function show_requirements()
     println()
     print_warn("Daily Use")
     println()
-    println("  julia --project=. -m SSHRunner setup \\")
+    println("  julia --project=. -m DistSSHKit setup \\")
     println("    --sync host1 host2 host3")
-    println("  julia --project=. -m SSHRunner runner \\")
+    println("  julia --project=. -m DistSSHKit runner \\")
     println("    --local 8 host1:8 host2:8 host3:8 script.jl")
 end
 
@@ -382,11 +382,11 @@ end
 function show_usage()
     println("""
 Usage:
-  julia --project=. -m SSHRunner setup
-  julia --project=. -m SSHRunner setup --clone hosts...
-  julia --project=. -m SSHRunner setup --check hosts...
-  julia --project=. -m SSHRunner setup --pull hosts...
-  julia --project=. -m SSHRunner setup --sync hosts...
+  julia --project=. -m DistSSHKit setup
+  julia --project=. -m DistSSHKit setup --clone hosts...
+  julia --project=. -m DistSSHKit setup --check hosts...
+  julia --project=. -m DistSSHKit setup --pull hosts...
+  julia --project=. -m DistSSHKit setup --sync hosts...
 
 Commands:
   (none)          Show requirements for distributed execution
@@ -415,14 +415,14 @@ Arguments:
   hosts...        Remote hosts (user@host format)
 
 Examples:
-  julia --project=. -m SSHRunner setup
-  julia --project=. -m SSHRunner setup --clone host1 host2
-  julia --project=. -m SSHRunner setup --repo git@github.com:ORG/App.jl.git --clone host1
-  julia --project=. -m SSHRunner setup --remote-path ~/work/App.jl --clone host1 host2
-  julia --project=. -m SSHRunner setup --check host1 host2
-  julia --project=. -m SSHRunner setup --pull host1 host2
-  julia --project=. -m SSHRunner setup --instantiate host1 host2
-  julia --project=. -m SSHRunner setup --cleanup host1 host2
+  julia --project=. -m DistSSHKit setup
+  julia --project=. -m DistSSHKit setup --clone host1 host2
+  julia --project=. -m DistSSHKit setup --repo git@github.com:ORG/App.jl.git --clone host1
+  julia --project=. -m DistSSHKit setup --remote-path ~/work/App.jl --clone host1 host2
+  julia --project=. -m DistSSHKit setup --check host1 host2
+  julia --project=. -m DistSSHKit setup --pull host1 host2
+  julia --project=. -m DistSSHKit setup --instantiate host1 host2
+  julia --project=. -m DistSSHKit setup --cleanup host1 host2
 """)
 end
 
@@ -432,7 +432,7 @@ function resolve_clone_url(repo_override::Union{Nothing,String})
         repo = repo_override::String
         url = strip(repo)
         if !isempty(url)
-            return SSHRunner.normalize_git_clone_url(url)
+            return DistSSHKit.normalize_git_clone_url(url)
         end
     end
     url = clone_url_from_local_origin(String(PROJECT_ROOT))
@@ -717,7 +717,7 @@ function setup_main()
     println()
 end
 
-if get(ENV, "SSHRUNNER_KIT_CLI_INCLUDE", "") != "1" &&
+if get(ENV, "DIST_SSH_KIT_CLI_INCLUDE", "") != "1" &&
    !isempty(PROGRAM_FILE) &&
    abspath(PROGRAM_FILE) == abspath(@__FILE__)
     setup_main()

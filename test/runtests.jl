@@ -1,17 +1,17 @@
 #!/usr/bin/env julia
-# SSHRunner unit tests (optional; not required in every host application).
-# From the application repo root (when this tree lives under `SSHRunner/`):
-#   julia --project=. SSHRunner/test/runtests.jl
+# DistSSHKit unit tests (optional; not required in every host application).
+# From the application repo root (when this tree lives under `DistSSHKit/`):
+#   julia --project=. DistSSHKit/test/runtests.jl
 # From a standalone kit checkout (this directory as the active project):
 #   julia --project=. -e 'using Pkg; Pkg.test()'
 #
 # Maintainer checks: README.md ("Local verification").
-#   jetls check demos/*.jl src/SSHRunner.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
+#   jetls check demos/*.jl src/DistSSHKit.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
 
 using Test
 
-isdefined(@__MODULE__, :SSHRunner) || include(joinpath(@__DIR__, "..", "src", "SSHRunner.jl"))
-using .SSHRunner
+isdefined(@__MODULE__, :DistSSHKit) || include(joinpath(@__DIR__, "..", "src", "DistSSHKit.jl"))
+using .DistSSHKit
 
 include(joinpath(@__DIR__, "test_runner_log_common.jl"))
 
@@ -28,7 +28,7 @@ const _TEST_FILES = (
     "test_pkg_add_smoke.jl",
 )
 
-@testset "SSHRunner" verbose=true begin
+@testset "DistSSHKit" verbose=true begin
     for file in _TEST_FILES
         println("▸ ", file)
         include(joinpath(@__DIR__, file))

@@ -1,12 +1,12 @@
 using Test
 
 @testset "(@main) dispatch" begin
-    # `julia -m SSHRunner` invokes this module's `main` (the `(@main)` entry point).
+    # `julia -m DistSSHKit` invokes this module's `main` (the `(@main)` entry point).
     # Redirect CLI help text so test output stays readable.
     function _main_quiet(args)
         redirect_stdout(devnull) do
             redirect_stderr(devnull) do
-                return SSHRunner.main(args)
+                return DistSSHKit.main(args)
             end
         end
     end

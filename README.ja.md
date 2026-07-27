@@ -1,4 +1,4 @@
-# SSHRunner.jl
+# DistSSHKit.jl
 
 [![CI](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml)
 [![JETLS](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml)
@@ -25,7 +25,7 @@ English: [README.md](README.md)
 
 ## インストールと実行
 
-推奨: 通常の Julia パッケージとして `Pkg.add` で入れ、`julia -m SSHRunner` (Julia 1.12+) で呼ぶ。アプリルート (`Project.toml` があるディレクトリ) で動かす。
+推奨: 通常の Julia パッケージとして `Pkg.add` で入れ、`julia -m DistSSHKit` (Julia 1.12+) で呼ぶ。アプリルート (`Project.toml` があるディレクトリ) で動かす。
 
 ```bash
 cd MyProject.jl
@@ -39,33 +39,33 @@ julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/SSH
 まずはローカルだけで試すとよい (SSH 不要)。同梱 demo をプロジェクトにコピーしてから実行する:
 
 ```bash
-julia --project=. -m SSHRunner demo install
-julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
-julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
+julia --project=. -m DistSSHKit demo install
+julia --project=. -m DistSSHKit runner --local 2 demos/param_sweep.jl
+julia --project=. -m DistSSHKit runner --local 2 demos/coin_flip.jl
 ```
 
 `demo install` でコピーされる `./demos/*.jl` は、1ファイルで完結したテンプレート。そのままエディタで開いて読み・編集できる。既存ファイルは上書きしない (元に戻したいときは `--force`)。
 
 補足:
-- コピーせずパッケージ内のパスだけ確認したいとき: `julia --project=. -m SSHRunner demo list`
-- コピー先を指定したいとき: `julia --project=. -m SSHRunner demo install --dest DIR`
+- コピーせずパッケージ内のパスだけ確認したいとき: `julia --project=. -m DistSSHKit demo list`
+- コピー先を指定したいとき: `julia --project=. -m DistSSHKit demo install --dest DIR`
 
 リモートを使う場合はこの流れ:
 
 ```bash
 # リモート準備 (初回)
-julia --project=. -m SSHRunner setup --clone HOST1 HOST2 ...
-julia --project=. -m SSHRunner setup --instantiate HOST1 HOST2 ...
+julia --project=. -m DistSSHKit setup --clone HOST1 HOST2 ...
+julia --project=. -m DistSSHKit setup --instantiate HOST1 HOST2 ...
 
 # コード同期
-julia --project=. -m SSHRunner setup --sync HOST1 HOST2 ...
+julia --project=. -m DistSSHKit setup --sync HOST1 HOST2 ...
 
 # 分散実行
-julia --project=. -m SSHRunner runner \
+julia --project=. -m DistSSHKit runner \
   --local N HOST1:W HOST2:W ... scripts/jobs.jl [args...]
 
 # ワーカー数の目安
-julia --project=. -m SSHRunner suggest-workers --local HOST1 HOST2
+julia --project=. -m DistSSHKit suggest-workers --local HOST1 HOST2
 ```
 
 `runner` / `demo` / `setup` / `suggest-workers` の後ろがそのまま各コマンドの `ARGS` になる。ワーカーで load するモジュール名がホストの `Project.toml` の `name` と違うときは `--package NAME`。
@@ -73,10 +73,10 @@ julia --project=. -m SSHRunner suggest-workers --local HOST1 HOST2
 各サブコマンドの詳しいオプションは `--help` で確認できる:
 
 ```bash
-julia --project=. -m SSHRunner runner --help
-julia --project=. -m SSHRunner demo --help
-julia --project=. -m SSHRunner setup --help
-julia --project=. -m SSHRunner suggest-workers --help
+julia --project=. -m DistSSHKit runner --help
+julia --project=. -m DistSSHKit demo --help
+julia --project=. -m DistSSHKit setup --help
+julia --project=. -m DistSSHKit suggest-workers --help
 ```
 
 `Pkg.add(url=..., rev=...)` で `Project.toml` に `[deps]` + `[sources]`、`Manifest.toml` に実際に取得したコミットが記録される。バージョンはこの2ファイルで管理する (submodule 不要)。更新したいときは `rev` を変えて `Pkg.add` し直す。
@@ -105,7 +105,7 @@ end
 
 ローカルのみ (`--local N` のみ) ならこの節は丸ごと不要。複数のリモートホストに分散実行したいときは、次を先に済ませておく。開発・検証は macOS のみ (他 OS は未検証)。各ホストに Julia 1.12+ をインストールし、ローカル側には Git・OpenSSH (`ssh`)・rsync が必要。
 
-SSHRunner は、ユーザーが普段使う `ssh` コマンドでリモートに接続する。ワーカーの起動や結果の回収も、すべてこの接続経由で行う。**パスワード入力なしで接続できること**が前提なので、鍵認証 (`ssh-copy-id` など) を済ませ、各ホストで次が通るか確認する:
+DistSSHKit は、ユーザーが普段使う `ssh` コマンドでリモートに接続する。ワーカーの起動や結果の回収も、すべてこの接続経由で行う。**パスワード入力なしで接続できること**が前提なので、鍵認証 (`ssh-copy-id` など) を済ませ、各ホストで次が通るか確認する:
 
 ```bash
 ssh HOST echo ok
@@ -132,28 +132,28 @@ export DISTRIBUTED_SSH_OPTS="-o ProxyJump=bastion ..."
 
 ```bash
 cd ~/GitHub/MyProject.jl
-julia --project=. -m SSHRunner setup --check host1 host2
+julia --project=. -m DistSSHKit setup --check host1 host2
 ```
 
 初回セットアップはこの順で行う:
 
 ```bash
 # 1. 各ホストにリポジトリを git clone する
-julia --project=. -m SSHRunner setup --clone HOST ...
+julia --project=. -m DistSSHKit setup --clone HOST ...
 
 # 2. 各ホストで Pkg.instantiate して依存パッケージを揃える
-julia --project=. -m SSHRunner setup --instantiate HOST ...
+julia --project=. -m DistSSHKit setup --instantiate HOST ...
 
 # 3. clone・依存関係・Julia の有無などをまとめて確認する
-julia --project=. -m SSHRunner setup --check HOST ...
+julia --project=. -m DistSSHKit setup --check HOST ...
 
 # 4. 手元の git コミットに各ホストを揃える (以降、実行のたびにも使う)
-julia --project=. -m SSHRunner setup --sync HOST ...
+julia --project=. -m DistSSHKit setup --sync HOST ...
 ```
 
 ## トラブルシューティング
 
-- **git ハッシュ不一致**: `julia -m SSHRunner setup --sync ...`
+- **git ハッシュ不一致**: `julia -m DistSSHKit setup --sync ...`
 - **`attempt to send to unknown socket`**: `DISTRIBUTED_INIT_DELAY_SEC=10`
 - **リモートで Julia 未検出**: `--julia PATH` または `JULIA_DISTRIBUTED_EXE`
 - **それ以外**: 各サブコマンドの `--help`、[リモートホストを使う](#リモートホストを使う)
@@ -163,12 +163,12 @@ julia --project=. -m SSHRunner setup --sync HOST ...
 キットのコードそのものを編集しながら動作確認したいとき (通常の利用者は不要)。好きな場所に clone して、そのパスを `Pkg.develop` に渡す:
 
 ```bash
-git clone https://github.com/daihiko-lab/SSHRunner.jl.git ~/dev/SSHRunner.jl
+git clone https://github.com/daihiko-lab/SSHRunner.jl.git ~/dev/DistSSHKit.jl
 cd MyProject.jl
-julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/SSHRunner.jl"))'
+julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/DistSSHKit.jl"))'
 ```
 
-呼び出し方は `Pkg.add` の場合と同じ (`julia -m SSHRunner runner ...` など)。この clone 先のファイルを直接編集すればすぐ反映される。
+呼び出し方は `Pkg.add` の場合と同じ (`julia -m DistSSHKit runner ...` など)。この clone 先のファイルを直接編集すればすぐ反映される。
 
 ### ローカルでの検証
 
@@ -179,11 +179,11 @@ julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/SSHRunner.jl
 julia --project=. -e 'using Pkg; Pkg.test()'
 
 # 2. 静的解析 — `jetls` が PATH にあること (Pkg.Apps.add 後、.zshrc 等で `export PATH="$HOME/.julia/bin:$PATH"` など)
-jetls check demos/*.jl src/SSHRunner.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
+jetls check demos/*.jl src/DistSSHKit.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
 
 # 3. 手動スモーク (README クイックスタートと同じ)
-julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
-julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
+julia --project=. -m DistSSHKit runner --local 2 demos/param_sweep.jl
+julia --project=. -m DistSSHKit runner --local 2 demos/coin_flip.jl
 ```
 
 `Pkg.test()` は `test/test_demos.jl` (demo スクリプト自体) と `test/test_demo_cli.jl` (`demo install`/`demo list`) の両方を自動で回す。2–3 は push 前の追加確認。

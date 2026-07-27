@@ -1,4 +1,4 @@
-# SSHRunner.jl
+# DistSSHKit.jl
 
 [![CI](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml)
 [![JETLS](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml)
@@ -25,7 +25,7 @@ Not a fit for large-scale HPC cluster operation, multi-threaded parallelism, or 
 
 ## Install and run
 
-Recommended: add the kit as a normal Julia package via `Pkg.add`, then call it via `julia -m SSHRunner` (Julia 1.12+). Run from your app root (directory with `Project.toml`).
+Recommended: add the kit as a normal Julia package via `Pkg.add`, then call it via `julia -m DistSSHKit` (Julia 1.12+). Run from your app root (directory with `Project.toml`).
 
 ```bash
 cd MyProject.jl
@@ -39,33 +39,33 @@ See [Releases/Tags](https://github.com/daihiko-lab/SSHRunner.jl/tags) for the la
 Try it locally first (no SSH needed) — copy the bundled demos into your project, then run one:
 
 ```bash
-julia --project=. -m SSHRunner demo install
-julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
-julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
+julia --project=. -m DistSSHKit demo install
+julia --project=. -m DistSSHKit runner --local 2 demos/param_sweep.jl
+julia --project=. -m DistSSHKit runner --local 2 demos/coin_flip.jl
 ```
 
 `demo install` copies each demo as a single, self-contained file into `./demos/` — open and edit `demos/*.jl` directly in your editor. Existing files are not overwritten (use `--force` to reset to the bundled version).
 
 Notes:
-- To see the bundled paths without copying: `julia --project=. -m SSHRunner demo list`
-- To pick the destination explicitly: `julia --project=. -m SSHRunner demo install --dest DIR`
+- To see the bundled paths without copying: `julia --project=. -m DistSSHKit demo list`
+- To pick the destination explicitly: `julia --project=. -m DistSSHKit demo install --dest DIR`
 
 With remote hosts, the flow looks like this:
 
 ```bash
 # Remote setup (first time)
-julia --project=. -m SSHRunner setup --clone HOST1 HOST2 ...
-julia --project=. -m SSHRunner setup --instantiate HOST1 HOST2 ...
+julia --project=. -m DistSSHKit setup --clone HOST1 HOST2 ...
+julia --project=. -m DistSSHKit setup --instantiate HOST1 HOST2 ...
 
 # Sync code
-julia --project=. -m SSHRunner setup --sync HOST1 HOST2 ...
+julia --project=. -m DistSSHKit setup --sync HOST1 HOST2 ...
 
 # Distributed run
-julia --project=. -m SSHRunner runner \
+julia --project=. -m DistSSHKit runner \
   --local N HOST1:W HOST2:W ... scripts/jobs.jl [args...]
 
 # Worker-count hints
-julia --project=. -m SSHRunner suggest-workers --local HOST1 HOST2
+julia --project=. -m DistSSHKit suggest-workers --local HOST1 HOST2
 ```
 
 Everything after `runner` / `demo` / `setup` / `suggest-workers` becomes that command's `ARGS`. If the worker module name differs from your `Project.toml` `name`, use `--package NAME`.
@@ -73,10 +73,10 @@ Everything after `runner` / `demo` / `setup` / `suggest-workers` becomes that co
 See each subcommand's full option list with `--help`:
 
 ```bash
-julia --project=. -m SSHRunner runner --help
-julia --project=. -m SSHRunner demo --help
-julia --project=. -m SSHRunner setup --help
-julia --project=. -m SSHRunner suggest-workers --help
+julia --project=. -m DistSSHKit runner --help
+julia --project=. -m DistSSHKit demo --help
+julia --project=. -m DistSSHKit setup --help
+julia --project=. -m DistSSHKit suggest-workers --help
 ```
 
 `Pkg.add(url=..., rev=...)` registers `[deps]` + `[sources]` in `Project.toml`, and records the actual commit fetched in `Manifest.toml`. These two files are the source of truth for the version (no submodule needed). To update, change `rev` and re-run `Pkg.add`.
@@ -105,7 +105,7 @@ Runnable examples: [`demos/`](demos/) (parameter sweep, coin flips).
 
 Skip this section entirely if you only use `--local N`. To run across multiple remote hosts, set the following up first. Developed and tested on macOS only (other OSes are not validated). Each host needs Julia 1.12+; your local machine needs Git, OpenSSH (`ssh`), and rsync.
 
-SSHRunner connects to remotes using your normal `ssh` command. Worker startup and result collection all go through that connection. You must be able to log in **without typing a password** (set up key auth, e.g. `ssh-copy-id`). Check each host with:
+DistSSHKit connects to remotes using your normal `ssh` command. Worker startup and result collection all go through that connection. You must be able to log in **without typing a password** (set up key auth, e.g. `ssh-copy-id`). Check each host with:
 
 ```bash
 ssh HOST echo ok
@@ -132,28 +132,28 @@ Check everything is ready:
 
 ```bash
 cd ~/GitHub/MyProject.jl
-julia --project=. -m SSHRunner setup --check host1 host2
+julia --project=. -m DistSSHKit setup --check host1 host2
 ```
 
 First-time setup, in this order:
 
 ```bash
 # 1. git clone the repo onto each host
-julia --project=. -m SSHRunner setup --clone HOST ...
+julia --project=. -m DistSSHKit setup --clone HOST ...
 
 # 2. Pkg.instantiate on each host to install dependencies
-julia --project=. -m SSHRunner setup --instantiate HOST ...
+julia --project=. -m DistSSHKit setup --instantiate HOST ...
 
 # 3. Verify clone, dependencies, Julia availability, etc.
-julia --project=. -m SSHRunner setup --check HOST ...
+julia --project=. -m DistSSHKit setup --check HOST ...
 
 # 4. Align each host to your local git commit (also used before every run)
-julia --project=. -m SSHRunner setup --sync HOST ...
+julia --project=. -m DistSSHKit setup --sync HOST ...
 ```
 
 ## Troubleshooting
 
-- **Git hash mismatch**: `julia -m SSHRunner setup --sync ...`
+- **Git hash mismatch**: `julia -m DistSSHKit setup --sync ...`
 - **`attempt to send to unknown socket`**: `DISTRIBUTED_INIT_DELAY_SEC=10`
 - **Julia not found on remote**: `--julia PATH` or `JULIA_DISTRIBUTED_EXE`
 - **Anything else**: `--help` on each subcommand; [Using remote hosts](#using-remote-hosts)
@@ -163,12 +163,12 @@ julia --project=. -m SSHRunner setup --sync HOST ...
 If you're editing the kit's own code while testing it (not needed for regular use), clone it anywhere and point `Pkg.develop` at that path:
 
 ```bash
-git clone https://github.com/daihiko-lab/SSHRunner.jl.git ~/dev/SSHRunner.jl
+git clone https://github.com/daihiko-lab/SSHRunner.jl.git ~/dev/DistSSHKit.jl
 cd MyProject.jl
-julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/SSHRunner.jl"))'
+julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/DistSSHKit.jl"))'
 ```
 
-Same call interface as `Pkg.add` (`julia -m SSHRunner runner ...`, etc.). Edits in that checkout take effect immediately.
+Same call interface as `Pkg.add` (`julia -m DistSSHKit runner ...`, etc.). Edits in that checkout take effect immediately.
 
 ### Local verification
 
@@ -179,11 +179,11 @@ From the kit checkout root, maintainers typically run:
 julia --project=. -e 'using Pkg; Pkg.test()'
 
 # 2. Static analysis — needs `jetls` on PATH (e.g. Pkg.Apps.add + `export PATH="$HOME/.julia/bin:$PATH"` in shell rc)
-jetls check demos/*.jl src/SSHRunner.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
+jetls check demos/*.jl src/DistSSHKit.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
 
 # 3. Manual smoke (same as README quickstart)
-julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
-julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
+julia --project=. -m DistSSHKit runner --local 2 demos/param_sweep.jl
+julia --project=. -m DistSSHKit runner --local 2 demos/coin_flip.jl
 ```
 
 `Pkg.test()` covers both the demo scripts (`test/test_demos.jl`) and `demo install`/`demo list` (`test/test_demo_cli.jl`) automatically; steps 2–3 are extra checks before pushing.

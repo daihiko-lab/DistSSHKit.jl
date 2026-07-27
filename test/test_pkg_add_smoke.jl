@@ -24,7 +24,7 @@ using Test
         @test develop_proc.exitcode == 0
 
         run_cmd = setenv(
-            `$julia --project=$proj -m SSHRunner runner --local 2 --no-log $script`,
+            `$julia --project=$proj -m DistSSHKit runner --local 2 --no-log $script`,
             merge(filter(!isempty, ENV), Dict(
                 "DISTRIBUTED_INIT_DELAY_SEC" => "0",
                 "DISTRIBUTED_PROJECT_ROOT" => proj,

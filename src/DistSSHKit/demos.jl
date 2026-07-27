@@ -1,6 +1,6 @@
 # Bundled demo scripts (`demos/param_sweep.jl`, `demos/coin_flip.jl`, …): discovery
 # and the `demo install` / `demo list` CLI subcommand. `_KIT_ROOT` is defined in the
-# top-level `SSHRunner.jl` (its `@__DIR__` must resolve to `src/`).
+# top-level `DistSSHKit.jl` (its `@__DIR__` must resolve to `src/`).
 
 """Directory containing bundled demo driver scripts (`param_sweep.jl`, `coin_flip.jl`, …)."""
 demos_dir()::String = joinpath(_KIT_ROOT, "demos")
@@ -107,8 +107,8 @@ end
 function _demo_help_text()::String
     lines = String[
         "Usage:",
-        "  julia --project=. -m SSHRunner demo install [--dest DIR] [--force]",
-        "  julia --project=. -m SSHRunner demo list",
+        "  julia --project=. -m DistSSHKit demo install [--dest DIR] [--force]",
+        "  julia --project=. -m DistSSHKit demo list",
         "",
         "install  Copy bundled demo scripts into ./demos/ (or --dest DIR/demos/)",
         "         so you can read and edit them as templates. Existing files at",
@@ -124,7 +124,7 @@ function _demo_help_text()::String
     append!(lines, String[
         "",
         "After install, open demos/*.jl in your editor, then run for example:",
-        "  julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl",
+        "  julia --project=. -m DistSSHKit runner --local 2 demos/param_sweep.jl",
     ])
     return join(lines, '\n')
 end
@@ -134,8 +134,8 @@ end
 
 Install or list bundled demo driver scripts. See [`(@main)`](@ref).
 
-    julia --project=. -m SSHRunner demo install
-    julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
+    julia --project=. -m DistSSHKit demo install
+    julia --project=. -m DistSSHKit runner --local 2 demos/param_sweep.jl
 """
 function demo(args::Vector{String}=copy(ARGS))::Cint
     if isempty(args) || args[1] in ("-h", "--help", "help")
@@ -174,7 +174,7 @@ function demo(args::Vector{String}=copy(ARGS))::Cint
             rel_demos = relpath(dest_demos, dest)
             println()
             println("Demos are in ", dest_demos, "; open and edit them, then run for example:")
-            println("  julia --project=. -m SSHRunner runner --local 2 $rel_demos/param_sweep.jl")
+            println("  julia --project=. -m DistSSHKit runner --local 2 $rel_demos/param_sweep.jl")
             return 0
         catch err
             println(stderr, sprint(showerror, err))

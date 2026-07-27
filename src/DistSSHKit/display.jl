@@ -50,7 +50,7 @@ Walk upward from `start_dir` to find the directory that should be passed to
 `Pkg.activate` on workers.
 
 If the first `Project.toml` found is the **vendored stub** (its `name` is
-`SSHRunner`, matching this kit’s own `Project.toml`) and the parent
+`DistSSHKit`, matching this kit’s own `Project.toml`) and the parent
 directory also has a `Project.toml`, skip it and keep walking so scripts
 co-located with the kit inherit the application project root (regardless of
 the kit folder’s basename).
@@ -63,7 +63,7 @@ function resolve_pkg_project_dir(start_dir::AbstractString)::String
         if isfile(pt)
             parent = dirname(test_dir)
             stub = project_package_name(test_dir)
-            skip_stub = stub == "SSHRunner" && isfile(joinpath(parent, "Project.toml"))
+            skip_stub = stub == "DistSSHKit" && isfile(joinpath(parent, "Project.toml"))
             skip_stub || return test_dir
         end
         parent = dirname(test_dir)
@@ -77,7 +77,7 @@ end
 Default local project root for `runner.jl` / `setup.jl` / `suggest_workers.jl`.
 
 - Standalone kit checkout (`Project.toml` at repo root): the kit directory.
-- Embedded under a host app (`…/SSHRunner/` stub next to the app `Project.toml`): the app root.
+- Embedded under a host app (`…/DistSSHKit/` stub next to the app `Project.toml`): the app root.
 """
 function runner_kit_project_root(kit_dir::AbstractString)::String
     root = String(abspath(expanduser(String(kit_dir))))
@@ -87,7 +87,7 @@ function runner_kit_project_root(kit_dir::AbstractString)::String
     isfile(joinpath(root, "Project.toml")) || return dirname(root)
     parent = dirname(root)
     stub = project_package_name(root)
-    if stub == "SSHRunner" && isfile(joinpath(parent, "Project.toml"))
+    if stub == "DistSSHKit" && isfile(joinpath(parent, "Project.toml"))
         return parent
     end
     return root
