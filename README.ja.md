@@ -38,6 +38,8 @@ end
 
 動く最小例: [`templates/script_template.jl`](templates/script_template.jl)。
 
+`runner.jl` が先に `using Distributed` してからこのスクリプトを `include` するので、`pmap` 等を使うだけなら自分で `using Distributed` を書かなくてもよい (単体で実行・テストする場合は書いておくと安全)。
+
 ## 1. パッケージアプリインストール (実験的)
 
 > 実験的: [Pkg Apps](https://pkgdocs.julialang.org/v1/apps/) は Julia 1.12 でまだ実験的機能。`ParallelRunnerKit` をパッケージとして入れ、`prunner` / `psetup` / `psuggest` を `~/.julia/bin` に登録する方式。アプリのリポジトリにキットを置かないのが 2 との違い。

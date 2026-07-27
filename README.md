@@ -38,6 +38,8 @@ end
 
 Runnable minimal example: [`templates/script_template.jl`](templates/script_template.jl).
 
+`runner.jl` runs `using Distributed` before it `include`s your script, so you don't need `using Distributed` yourself just to call `pmap`, etc. (worth adding anyway if you also run or test the script standalone).
+
 ## 1. Package app install (experimental)
 
 > Experimental: Julia 1.12 [Pkg Apps](https://pkgdocs.julialang.org/v1/apps/) is still experimental. Install `ParallelRunnerKit` as a package and register `prunner` / `psetup` / `psuggest` under `~/.julia/bin`. Unlike option 2, you do not vendor the kit in your app repository.
