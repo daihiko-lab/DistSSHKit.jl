@@ -40,7 +40,7 @@ jobs:
         if: matrix.version == '1.12'
       - name: Upload coverage to Codecov
         if: matrix.version == '1.12'
-        uses: codecov/codecov-action@v6
+        uses: codecov/codecov-action@v7
         with:
           files: lcov.info
           slug: daihiko-lab/SSHRunner.jl
