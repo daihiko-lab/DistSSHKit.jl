@@ -435,9 +435,10 @@ end
 """Resolve clone URL: `--repo` wins, else local `origin` (HTTPS GitHub → SSH)."""
 function resolve_clone_url(repo_override::Union{Nothing,String})
     if repo_override isa String
-        url = strip(repo_override)
+        repo = repo_override::String
+        url = strip(repo)
         if !isempty(url)
-            return normalize_git_clone_url(url)
+            return SSHRunner.normalize_git_clone_url(url)
         end
     end
     url = clone_url_from_local_origin(String(PROJECT_ROOT))

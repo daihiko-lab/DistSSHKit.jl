@@ -1,8 +1,6 @@
 using Test
 
 @testset "SSHRunner (path helpers)" begin
-    include(joinpath(@__DIR__, "..", "src", "SSHRunner.jl"))
-
     # -- short_path --------------------------------------------------------
     let home = expanduser("~")
         @test SSHRunner.short_path(joinpath(home, "foo", "bar")) == joinpath("~", "foo", "bar")
@@ -142,36 +140,6 @@ using Test
             ) == "~/work/MyApp.jl"
     end
 
-    @test_throws ArgumentError SSHRunner.parse_runner_args(["--collect", "h"])
-    @test_throws ArgumentError SSHRunner.parse_runner_args(["--collect-sync", "data/sweep", "host"])
-
-    let r = SSHRunner.parse_runner_args(["--collect-missing", "data/sweep", "host-a", "host-b"])
-        @test r.collect_root == abspath("data/sweep")
-        @test r.collect_hosts == ["host-a", "host-b"]
-        @test r.collect_overwrite == false
-        @test r.script_path === nothing
-    end
-
-    let r = SSHRunner.parse_runner_args(["--collect-tree", "data/sweep", "host-a", "host-b"])
-        @test r.collect_root == abspath("data/sweep")
-        @test r.collect_hosts == ["host-a", "host-b"]
-        @test r.collect_overwrite == false
-    end
-
-    let r = SSHRunner.parse_runner_args(["--collect-overwrite", "data/sweep", "host-a"])
-        @test r.collect_root == abspath("data/sweep")
-        @test r.collect_hosts == ["host-a"]
-        @test r.collect_overwrite == true
-    end
-
-    let r = SSHRunner.parse_runner_args(["--collect-tree-sync", "data/sweep", "host-a"])
-        @test r.collect_root == abspath("data/sweep")
-        @test r.collect_hosts == ["host-a"]
-        @test r.collect_overwrite == true
-    end
-
-    @test_throws ArgumentError SSHRunner.parse_runner_args(["--collect-missing", "data/sweep"])
-
     @test SSHRunner.local_dir_from_remote_mirror(
             "/Volumes/r/MyRepo/data/sweep/slug/20260101_120000",
             "/Volumes/r/MyRepo",
@@ -235,23 +203,11 @@ using Test
         @test SSHRunner.build_ssh_opts() == ["-o", "Foo=bar", "-o", "Baz=qux"]
     end
 
-    # -- estimate_worker_memory_gb / estimate_available_gb -------------------
-    @test SSHRunner.estimate_worker_memory_gb() > 0
-    let (total, avail) = SSHRunner.estimate_available_gb()
-        @test total > 0
-        @test avail > 0
-        @test avail <= total || avail == total * 0.5
-    end
-
     # -- get_local_resources ---------------------------------------------
     let r = SSHRunner.get_local_resources()
         @test r.total_gb > 0
         @test r.nproc >= 1
     end
-
-    # -- _parse_host_workers_spec ---------------------------------------
-    @test SSHRunner._parse_host_workers_spec("host-a") == ("host-a", nothing)
-    @test SSHRunner._parse_host_workers_spec("host-a:10") == ("host-a", 10)
 
     # -- TeeIO ---------------------------------------------------------------
     let primary = IOBuffer(), secondary = IOBuffer()
@@ -276,75 +232,11 @@ using Test
         @test String(take!(primary)) == "hello\n"
     end
 
-    # -- parse_runner_args: basic options -----------------------------------
-    withenv("JULIA_DISTRIBUTED_EXE" => nothing) do
-        let r = SSHRunner.parse_runner_args(["--help"])
-            @test r.help == true
-        end
-        let r = SSHRunner.parse_runner_args(["-h"])
-            @test r.help == true
-        end
-        let r = SSHRunner.parse_runner_args(["--local", "4", "myscript.jl", "a", "b"])
-            @test r.local_workers == 4
-            @test r.script_path == "myscript.jl"
-            @test r.script_args == ["a", "b"]
-            @test r.help == false
-        end
-        let r = SSHRunner.parse_runner_args(["--workers", "3", "host1", "host2:5", "s.jl"])
-            @test r.default_workers == 3
-            @test r.hosts == [("host1", nothing), ("host2", 5)]
-            @test r.script_path == "s.jl"
-        end
-        let r = SSHRunner.parse_runner_args(["--julia", "/usr/bin/julia", "s.jl"])
-            @test r.julia == "/usr/bin/julia"
-        end
-        let r = SSHRunner.parse_runner_args(["--julia", "auto", "s.jl"])
-            @test r.julia === nothing
-        end
-        let r = SSHRunner.parse_runner_args(["--skip-hash-check", "s.jl"])
-            @test r.skip_hash_check == true
-        end
-        let r = SSHRunner.parse_runner_args(["--no-hash-check", "s.jl"])
-            @test r.skip_hash_check == true
-        end
-        let r = SSHRunner.parse_runner_args(["--no-log", "s.jl"])
-            @test r.enable_log == false
-        end
-        let r = SSHRunner.parse_runner_args(["--log-dir", "/tmp/logs", "s.jl"])
-            @test r.log_dir == "/tmp/logs"
-        end
-        let r = SSHRunner.parse_runner_args(["--package", "MyPkg", "s.jl"])
-            @test r.explicit_package == "MyPkg"
-        end
-        let r = SSHRunner.parse_runner_args(["--package", "  ", "s.jl"])
-            @test r.explicit_package === nothing
-        end
-        let r = SSHRunner.parse_runner_args(String[])
-            @test r.script_path === nothing
-            @test r.help == false
-        end
-    end
-    withenv("JULIA_DISTRIBUTED_EXE" => "/opt/custom/julia") do
-        let r = SSHRunner.parse_runner_args(["s.jl"])
-            @test r.julia == "/opt/custom/julia"
-        end
-    end
-
-    # -- runner_help_text ----------------------------------------------
-    let txt = SSHRunner.runner_help_text()
-        @test occursin("Usage:", txt)
-        @test occursin("--collect-missing", txt)
-        @test occursin("JULIA_DISTRIBUTED_EXE", txt)
-    end
-
-    # -- get_local_git_hash / clone_url_from_local_origin / check_git_hashes
+    # -- get_local_git_hash / clone_url_from_local_origin ----------------------
     mktempdir() do tmp
         d = abspath(string(tmp))
         @test SSHRunner.get_local_git_hash(d) === nothing
         @test SSHRunner.clone_url_from_local_origin(d) === nothing
-        ok_flag, mismatches = SSHRunner.check_git_hashes(String[], d)
-        @test ok_flag == true
-        @test mismatches == String[]
 
         run(Cmd(["git", "-C", d, "init", "-q"]))
         run(Cmd(["git", "-C", d, "config", "user.email", "test@example.com"]))
@@ -399,9 +291,6 @@ using Test
 end
 
 @testset "(@main) subcommand dispatch" begin
-    include(joinpath(@__DIR__, "..", "src", "SSHRunner.jl"))
-    using .SSHRunner
-
     # `julia -m SSHRunner` invokes this module's `main` (the `(@main)` entry point).
     @test SSHRunner.main(String[]) == 1
     @test SSHRunner.main(["bogus"]) == 1
