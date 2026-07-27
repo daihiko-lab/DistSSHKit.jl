@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write # Codecov OIDC (public repos; optional if using CODECOV_TOKEN)
 
 jobs:
   jetls:
@@ -58,6 +59,13 @@ jobs:
           coverage: ${{ matrix.version == '1.12' }}
       - uses: julia-actions/julia-processcoverage@v1
         if: matrix.version == '1.12'
+      - name: Upload coverage to Codecov
+        if: matrix.version == '1.12'
+        uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
       - name: Coverage summary
         if: matrix.version == '1.12'
         run: |
