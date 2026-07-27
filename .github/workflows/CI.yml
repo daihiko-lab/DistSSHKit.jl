@@ -28,7 +28,8 @@ jobs:
         run: |
           julia --startup-file=no -e '
             using Pkg
-            Pkg.Apps.add(url="https://github.com/aviatesk/JETLS.jl")'
+            Pkg.Registry.add("General")
+            Pkg.Apps.add(url="https://github.com/aviatesk/JETLS.jl", rev="release")'
           echo "$HOME/.julia/bin" >> "$GITHUB_PATH"
       - name: jetls check
         run: |
