@@ -83,6 +83,22 @@ ssh_runner_version()::VersionNumber = SSH_RUNNER_VERSION
 
 const _KIT_ROOT = dirname(@__DIR__)
 
+const _KIT_CLI_LOADED = Set{String}()
+const _KIT_CLI_SCRIPTS = ("runner.jl", "setup.jl", "suggest_workers.jl")
+
+function _kit_cli_run_entry(script_base::String)::Cint
+    if script_base == "runner.jl"
+        return Base.invokelatest(Main.runner_main)
+    elseif script_base == "setup.jl"
+        Base.invokelatest(Main.setup_main)
+        return 0
+    elseif script_base == "suggest_workers.jl"
+        Base.invokelatest(Main.suggest_workers_main)
+        return 0
+    end
+    return 0
+end
+
 """Run a kit CLI script in `src/` (`runner.jl`, `setup.jl`, …) with `ARGS` set."""
 function _run_kit_cli_script(script_name::AbstractString, args::Vector{String})::Cint
     haskey(ENV, "DISTRIBUTED_PROJECT_ROOT") || (ENV["DISTRIBUTED_PROJECT_ROOT"] = pwd())
@@ -95,13 +111,26 @@ function _run_kit_cli_script(script_name::AbstractString, args::Vector{String}):
     else
         joinpath(@__DIR__, String(script_name))
     end
-    # Include into `Main` (not this package's module): the script's top-level code
-    # (worker ping closures, `isdefined(Main, :main)` checks, etc.) must live in `Main`
-    # to match the vendored/`include`d script workflow — otherwise closures sent to
-    # worker processes fail to deserialize (their owning module, this package, is not
-    # necessarily `using`-loaded on the worker yet).
-    Core.include(Main, script_path)
-    return 0
+    script_base = basename(script_path)
+    prev_include = get(ENV, "SSHRUNNER_KIT_CLI_INCLUDE", nothing)
+    ENV["SSHRUNNER_KIT_CLI_INCLUDE"] = "1"
+    try
+        if script_base in _KIT_CLI_SCRIPTS
+            if !(script_base in _KIT_CLI_LOADED)
+                Core.include(Main, script_path)
+                push!(_KIT_CLI_LOADED, script_base)
+            end
+            return _kit_cli_run_entry(script_base)
+        end
+        Core.include(Main, script_path)
+        return 0
+    finally
+        if prev_include === nothing
+            delete!(ENV, "SSHRUNNER_KIT_CLI_INCLUDE")
+        else
+            ENV["SSHRUNNER_KIT_CLI_INCLUDE"] = prev_include
+        end
+    end
 end
 
 """

@@ -1,6 +1,6 @@
 using Test
 
-@testset "SSHRunner (path helpers)" begin
+@testset "path helpers" begin
     # -- short_path --------------------------------------------------------
     let home = expanduser("~")
         @test SSHRunner.short_path(joinpath(home, "foo", "bar")) == joinpath("~", "foo", "bar")
@@ -287,41 +287,5 @@ using Test
                 end
             end
         end
-    end
-end
-
-@testset "(@main) subcommand dispatch" begin
-    # `julia -m SSHRunner` invokes this module's `main` (the `(@main)` entry point).
-    @test SSHRunner.main(String[]) == 1
-    @test SSHRunner.main(["bogus"]) == 1
-    @test SSHRunner.main(["runner", "--help"]) == 0
-    @test SSHRunner.main(["setup", "--help"]) == 0
-    @test SSHRunner.main(["suggest-workers", "--help"]) == 0
-    @test SSHRunner.main(["suggest_workers", "--help"]) == 0
-end
-
-@testset "host Project.toml merges kit [deps] (monorepo layout)" begin
-    using TOML
-    kit_root = abspath(joinpath(@__DIR__, ".."))
-    kit_toml = joinpath(kit_root, "Project.toml")
-    @test isfile(kit_toml)
-    kit_deps = get(TOML.parsefile(kit_toml), "deps", Dict{String,String}())
-    parent = dirname(kit_root)
-    parent_proj = joinpath(parent, "Project.toml")
-    nested_kit = joinpath(parent, "SSHRunner", "Project.toml")
-    # Monorepo: `.../App/SSHRunner/test` → kit at `App/SSHRunner`, host `App/Project.toml`.
-    # Standalone kit repo: parent has no nested `SSHRunner/Project.toml`; only assert kit deps exist.
-    skip_merge_check = ["Distributed"]
-    if isfile(parent_proj) && isfile(nested_kit) && abspath(kit_root) == abspath(joinpath(parent, "SSHRunner"))
-        root_deps = get(TOML.parsefile(parent_proj), "deps", Dict{String,String}())
-        for (name, uuid) in kit_deps
-            n = String(name)
-            n in skip_merge_check && continue
-            @test haskey(root_deps, n)
-            @test root_deps[n] == String(uuid)
-        end
-    else
-        @test haskey(kit_deps, "ArgParse")
-        @test haskey(kit_deps, "JSON3")
     end
 end

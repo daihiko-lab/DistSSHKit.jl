@@ -594,7 +594,7 @@ function instantiate_remotes(hosts::Vector{String}, julia_path::String, remote_p
     end
 end
 
-function main()
+function setup_main()
     opts = parse_args(ARGS)
     
     if opts.show_help
@@ -717,4 +717,8 @@ function main()
     println()
 end
 
-main()
+if get(ENV, "SSHRUNNER_KIT_CLI_INCLUDE", "") != "1" &&
+   !isempty(PROGRAM_FILE) &&
+   abspath(PROGRAM_FILE) == abspath(@__FILE__)
+    setup_main()
+end

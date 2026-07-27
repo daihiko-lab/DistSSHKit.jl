@@ -224,7 +224,8 @@ end
 function clone_url_from_local_origin(proj_dir::AbstractString)::Union{Nothing,String}
     resolved = String(abspath(expanduser(String(proj_dir))))
     try
-        origin_url = strip(read(Cmd(["git", "-C", resolved, "remote", "get-url", "origin"]), String))
+        origin_url = strip(read(pipeline(Cmd(["git", "-C", resolved, "remote", "get-url", "origin"]);
+                                          stderr=devnull), String))
         isempty(origin_url) && return nothing
         return normalize_git_clone_url(origin_url)
     catch

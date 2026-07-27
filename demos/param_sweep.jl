@@ -5,7 +5,7 @@
 
 using Distributed
 
-function init_output_dir!(script_args::Vector{String})
+function init_output_dir!(_script_args::Vector{String})
     dir = joinpath(@__DIR__, "output")
     mkpath(dir)
     ENV["DISTRIBUTED_OUTPUT_DIR"] = dir

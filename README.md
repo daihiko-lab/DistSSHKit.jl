@@ -1,6 +1,7 @@
 # SSHRunner.jl
 
 [![CI](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml)
+[![JETLS](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml)
 [![codecov](https://codecov.io/gh/daihiko-lab/SSHRunner.jl/graph/badge.svg)](https://codecov.io/gh/daihiko-lab/SSHRunner.jl)
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -24,7 +25,7 @@ Not a fit for large-scale HPC cluster operation, multi-threaded parallelism, or 
 
 ## Install and run
 
-Recommended: add the kit as a normal Julia package via `Pkg.add`, then call it via `julia -m SSHRunner` (Julia 1.12+; no Pkg Apps install needed). Run from your app root (directory with `Project.toml`).
+Recommended: add the kit as a normal Julia package via `Pkg.add`, then call it via `julia -m SSHRunner` (Julia 1.12+). Run from your app root (directory with `Project.toml`).
 
 ```bash
 cd MyProject.jl
@@ -159,6 +160,26 @@ julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/SSHRunner.jl
 ```
 
 Same call interface as `Pkg.add` (`julia -m SSHRunner runner ...`, etc.). Edits in that checkout take effect immediately.
+
+### Local verification
+
+From the kit checkout root, maintainers typically run:
+
+```bash
+# 1. Tests (unit, runner smoke, demo scripts, log output, ...)
+julia --project=. -e 'using Pkg; Pkg.test()'
+
+# 2. Static analysis — needs `jetls` on PATH (e.g. Pkg.Apps.add + `export PATH="$HOME/.julia/bin:$PATH"` in shell rc)
+jetls check demos/*.jl test/*.jl src/**/*.jl
+
+# 3. Manual smoke (same as README quickstart)
+julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
+julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
+```
+
+`Pkg.test()` covers the demos via `test/test_demos.jl`; steps 2–3 are extra checks before pushing.
+
+CI also runs [`.github/workflows/CI.yml`](.github/workflows/CI.yml) and [`.github/workflows/jetls.yml`](.github/workflows/jetls.yml).
 
 `Pkg.add(url=..., rev=...)` and `Pkg.develop(path=...)` both make you explicitly choose the version's source of truth, unlike General Registry's automatic `[compat]`-driven resolution. That's a deliberate fit for research use (pin an exact commit, keep it reproducible), not just a missing feature — General registration may be worth revisiting once the `0.x` interface settles, mainly for discoverability.
 

@@ -111,7 +111,11 @@ function collect_runner_results!(
     end
     results_dir = abspath(results_dir)
 
-    isempty(successful_hosts) && return
+    if isempty(successful_hosts)
+        writeln_both("")
+        writeln_both("Results: $(display_path(results_dir, root_disp))")
+        return
+    end
 
     writeln_both("")
     if skip_collect

@@ -5,6 +5,13 @@
 
 using Distributed
 
+function init_output_dir!(_script_args::Vector{String})
+    dir = joinpath(@__DIR__, "output")
+    mkpath(dir)
+    ENV["DISTRIBUTED_OUTPUT_DIR"] = dir
+    return dir
+end
+
 function main()
     flips_per_task = 100
     # Each of the 4 tasks flips a coin `flips_per_task` times and counts how many

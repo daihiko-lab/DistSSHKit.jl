@@ -1,6 +1,7 @@
 # SSHRunner.jl
 
 [![CI](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml)
+[![JETLS](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml)
 [![codecov](https://codecov.io/gh/daihiko-lab/SSHRunner.jl/graph/badge.svg)](https://codecov.io/gh/daihiko-lab/SSHRunner.jl)
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -24,7 +25,7 @@ English: [README.md](README.md)
 
 ## インストールと実行
 
-推奨: 通常の Julia パッケージとして `Pkg.add` で入れ、`julia -m SSHRunner` (Julia 1.12+、Pkg Apps 登録不要) で呼ぶ。アプリルート (`Project.toml` があるディレクトリ) で動かす。
+推奨: 通常の Julia パッケージとして `Pkg.add` で入れ、`julia -m SSHRunner` (Julia 1.12+) で呼ぶ。アプリルート (`Project.toml` があるディレクトリ) で動かす。
 
 ```bash
 cd MyProject.jl
@@ -159,6 +160,26 @@ julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/SSHRunner.jl
 ```
 
 呼び出し方は `Pkg.add` の場合と同じ (`julia -m SSHRunner runner ...` など)。この clone 先のファイルを直接編集すればすぐ反映される。
+
+### ローカルでの検証
+
+キットの clone ルートで、だいたい次の順に確認する:
+
+```bash
+# 1. テスト (単体、runner スモーク、demo、ログ出力など)
+julia --project=. -e 'using Pkg; Pkg.test()'
+
+# 2. 静的解析 — `jetls` が PATH にあること (Pkg.Apps.add 後、.zshrc 等で `export PATH="$HOME/.julia/bin:$PATH"` など)
+jetls check demos/*.jl test/*.jl src/**/*.jl
+
+# 3. 手動スモーク (README クイックスタートと同じ)
+julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
+julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
+```
+
+`Pkg.test()` は `test/test_demos.jl` で demo も回す。2–3 は push 前の追加確認。
+
+CI では [`CI.yml`](.github/workflows/CI.yml) と [`jetls.yml`](.github/workflows/jetls.yml) も走らせている。
 
 `Pkg.add(url=..., rev=...)` と `Pkg.develop(path=...)` は、どちらも使うバージョンを自分ではっきり決める設計。Julia General Registry のように `[compat]` で自動的に新しいバージョンへ上がっていく仕組みは想定していない。研究用途では特定のコミットに固定して再現性を保ちたいことが多いため。`0.x` のインターフェースが落ち着いたら、見つけてもらいやすくするために General 登録を検討する余地はある。
 

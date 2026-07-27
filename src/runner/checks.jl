@@ -1,5 +1,5 @@
 include(joinpath(@__DIR__, "_common.jl"))
-using SSHRunner: get_local_git_hash, get_remote_git_hash, get_remote_total_gb,
+using .SSHRunner: get_local_git_hash, get_remote_git_hash, get_remote_total_gb,
     print_err, print_ok, print_warn, write_both, writeln_both
 
 # Runner-only preflight checks (git parity, memory capacity).
@@ -23,7 +23,7 @@ function estimate_available_gb()
     return (total, max(free, total * 0.5))
 end
 
-function check_memory_capacity(local_workers::Int, hosts::Vector{Tuple{String,Union{Int,Nothing}}}, default_workers::Union{Int,Nothing})
+function check_memory_capacity(local_workers::Int, hosts::Vector{Tuple{String,Union{Int,Nothing}}}, default_workers::Union{Int,Nothing})::Bool
     per_worker = estimate_worker_memory_gb()
     r(x) = round(x, digits=1)
     writeln_both("Checking memory capacity...")
@@ -80,10 +80,11 @@ function check_memory_capacity(local_workers::Int, hosts::Vector{Tuple{String,Un
         response = readline()
         if lowercase(strip(response)) != "y"
             writeln_both("Aborted.")
-            exit(0)
+            return false
         end
         writeln_both("")
     end
+    return true
 end
 
 function check_git_hashes(hosts::Vector{String}, proj_dir::String)
