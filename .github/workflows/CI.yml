@@ -15,6 +15,26 @@ permissions:
   contents: read
 
 jobs:
+  jetls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: "1.12"
+      - uses: julia-actions/cache@v3
+      - name: Install jetls
+        run: |
+          julia --startup-file=no -e '
+            using Pkg
+            Pkg.Apps.add(url="https://github.com/aviatesk/JETLS.jl")'
+          echo "$HOME/.julia/bin" >> "$GITHUB_PATH"
+      - name: jetls check
+        run: |
+          shopt -s nullglob
+          jetls check --exit-severity=error --progress=none *.jl src/*.jl test/*.jl test/fixtures/*.jl
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
