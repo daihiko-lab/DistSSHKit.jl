@@ -18,6 +18,7 @@ export get_remote_git_hash, get_remote_nproc, get_remote_total_gb, init_log_file
 export normalize_git_clone_url, ok, parallel_runner_kit_version, parse_runner_args
 export print_err, print_header, print_info, print_ok, print_separator, print_warn
 export project_package_name, remote_path_for_ssh_collect, resolve_pkg_project_dir
+export runner_kit_project_root
 export resolve_remote_project_root, runner_help_text, short_path, use_colors, warn
 export write_both, writeln_both
 
@@ -94,6 +95,23 @@ function resolve_pkg_project_dir(start_dir::AbstractString)::String
         test_dir = parent
     end
     return fallback
+end
+
+"""
+Default local project root for `runner.jl` / `setup.jl` / `suggest_workers.jl`.
+
+- Standalone kit checkout (`Project.toml` at repo root): the kit directory.
+- Embedded under a host app (`…/ParallelRunnerKit/` stub next to the app `Project.toml`): the app root.
+"""
+function runner_kit_project_root(kit_dir::AbstractString)::String
+    root = String(abspath(expanduser(String(kit_dir))))
+    isfile(joinpath(root, "Project.toml")) || return dirname(root)
+    parent = dirname(root)
+    stub = project_package_name(root)
+    if stub == "ParallelRunnerKit" && isfile(joinpath(parent, "Project.toml"))
+        return parent
+    end
+    return root
 end
 
 """Read `version = "x.y.z"` from `path` (`Project.toml`); return `nothing` if missing or invalid."""
@@ -753,7 +771,7 @@ function parse_runner_args(args::Vector{String})
 
     i = 1
     while i <= length(args)
-        arg = args[i]
+        arg = String(args[i])
 
         if (arg == "--local" || arg == "-l") && i < length(args)
             local_workers = parse(Int, args[i+1])

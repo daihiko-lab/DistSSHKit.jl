@@ -81,7 +81,9 @@ include(joinpath(@__DIR__, "src", "ParallelRunnerKit.jl"))
 using .ParallelRunnerKit
 
 # Project root for git checks (same as setup.jl; script-path-derived proj_dir used for execution)
-const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT", dirname(@__DIR__))
+const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
+    runner_kit_project_root(@__DIR__)
+end
 
 show_help() = println(runner_help_text())
 

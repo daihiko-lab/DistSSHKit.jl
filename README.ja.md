@@ -4,329 +4,91 @@
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**状態:** 研究室で **開発途上** です。**実際のシミュレーション実験** を通じて動作を確認している段階であり、インターフェース・スクリプト・運用上の注意点は、安定版リリースが明示されるまでは **変更されうる** ものとして扱ってください。
-
-Distributed.jl によるマルチプロセス並列で、**任意のドライバ** Julia スクリプト (例: `scripts/jobs.jl` と独自の CLI) をローカルおよびリモートのワーカーに分散実行する (マルチスレッドではない)。
+任意の Julia ドライバスクリプトを、ローカル/SSH リモートの **プロセス** に分散実行する (Distributed.jl。マルチスレッドではない)。
 
 English: [README.md](README.md)
 
-**注**: マルチプロセス並列であり、マルチスレッドではない。単一プロセスのスレッド並列が必要なら、スクリプトを `julia -t N` で直接実行する。
+**状態:** `0.x` (1.0 未満)。マイナー版の間でもインターフェースが変わる可能性がある。
 
-**動作環境 (メンテナ側):** 開発・手動テスト・ドキュメント上の前提は **macOS のみ**。ローカルの `runner.jl` / `setup.jl` の例や運用メモ (rsync、スリープ、Thunderbolt など) は macOS を想定している。**Linux / Windows はこのリポジトリでは検証対象外** (リモートを別 OS にする場合は自己責任で調整する)。
-
-**Julia / GitHub:** いまの構成は小パッケージ形 (`Project.toml` + `src/ParallelRunnerKit.jl`)。**`Manifest.toml`** は任意で、`julia --project=<kit_dir>` で **`Pkg.instantiate()`** すればローカルに生成できる。この上流リポジトリでは **コミットしない** (このディレクトリの **[`.gitignore`](.gitignore)** 参照)。単独公開用の正本は **[daihiko-lab/ParallelRunnerKit.jl](https://github.com/daihiko-lab/ParallelRunnerKit.jl)** (`git clone https://github.com/daihiko-lab/ParallelRunnerKit.jl.git`)。CLI の `runner.jl` などはルートのままか `scripts/` へ移すかは好みでよい。
-
-## 上流リポジトリ (clone / サブモジュール)
+## インストール
 
 ```bash
 git clone https://github.com/daihiko-lab/ParallelRunnerKit.jl.git
 cd ParallelRunnerKit.jl
+julia --project=. -e 'using Pkg; Pkg.instantiate()'
 ```
 
-別リポジトリのルートから (典型的なサブモジュールのパス):
+他アプリへの埋め込み (サブモジュール等) は [埋め込み](#埋め込み) を参照。
+
+## ドライバスクリプト
+
+`runner.jl` で動かすスクリプトは、`Main` に次の 2 関数だけを定義する:
+
+```julia
+# ワーカー追加**前**に呼ばれる。ENV["DISTRIBUTED_OUTPUT_DIR"] を設定する。
+function init_output_dir!(args::Vector{String})::String
+    ...
+end
+
+# ワーカー準備**後**に呼ばれる。nworkers()/workers() を見て pmap 等を使う。
+function main()
+    ...
+end
+```
+
+動く最小例: [`templates/script_template.jl`](templates/script_template.jl)。
+
+## クイックスタート
+
+```bash
+# 1. リモートへ clone + 依存インストール (初回のみ)
+julia --project=. setup.jl --clone HOST1 HOST2 ...
+julia --project=. setup.jl --instantiate HOST1 HOST2 ...
+
+# 2. コミット後にコード同期
+julia --project=. setup.jl --sync HOST1 HOST2 ...
+
+# 3. 実行: ローカル N + リモート各ホスト W ワーカー
+julia --project=. runner.jl --local N HOST1:W HOST2:W ... path/to/script.jl [args...]
+```
+
+テンプレートで試す:
+
+```bash
+julia --project=. runner.jl --local 2 templates/script_template.jl
+```
+
+オプション・環境変数の一覧:
+
+```bash
+julia --project=. runner.jl --help
+julia --project=. setup.jl --help
+julia --project=. suggest_workers.jl --help
+```
+
+## 前提
+
+- macOS (開発・検証はここのみ。他 OS は未検証)
+- リモートへの SSH 鍵認証、Git・Julia がリモートに入っていること
+- 全ホストで同じリポジトリパス (異なる場合は `--remote-path` / `DISTRIBUTED_REMOTE_PROJECT_ROOT`)
+
+## 埋め込み
 
 ```bash
 git submodule add https://github.com/daihiko-lab/ParallelRunnerKit.jl.git ParallelRunnerKit
 ```
 
-## 単体コピー (任意の `Manifest.toml`)
-
-**`ParallelRunnerKit/`** だけをコピーしてランナー用依存 (`ArgParse`、`JSON3`、stdlib) を解決したいときは、一度:
-
-```bash
-julia --project=/path/to/ParallelRunnerKit -e 'using Pkg; Pkg.instantiate()'
-```
-
-とすると **`Project.toml`** の隣に **`Manifest.toml`** ができる。**`ParallelRunnerKit/.gitignore`** で追跡対象外にしてあるので、この上流ツリーではレジストリ解決の差分を常にコミットしなくてよい。厳密に固定したいフォークや私用配布では、**自分で `Manifest.toml` をコミット**してもよい。
-
-```bash
-julia --project=/path/to/ParallelRunnerKit /path/to/ParallelRunnerKit/runner.jl --help
-```
-
-**フルアプリに埋め込む場合:** シミュレーション本体はこれまでどおり **アプリケーションルート** の環境 (`julia --project=<リポジトリルート>`) を使い、ホストの `Project.toml` に **`[deps]` だけマージ**する従来の使い方でよい。
-
-## `ParallelRunnerKit/` の位置づけ (一式ドロップイン)
-
-**SSH / マルチホストの分散実行**に必要なのは、ざっくり言って **この `ParallelRunnerKit/` ディレクトリの中身一式** (`runner.jl`、`setup.jl`、`suggest_workers.jl`、**[`Project.toml`](Project.toml)** (ランナー専用依存。必要ならホストへ `[deps]` をマージ)、**`src/ParallelRunnerKit.jl`** (前述スクリプトが読み込む共有モジュール)、**[`templates/script_template.jl`](templates/script_template.jl)** (`init_output_dir!` / `main()` の最小例)。別リポジトリへ持ち込むときも **フォルダごとコピー**し、レイアウトを保てばよい。ドライバスクリプト側に **`init_output_dir!(args)`** と **`main()`** を実装する (契約は [DEVELOPMENT.ja.md](docs/DEVELOPMENT.ja.md) の「インターフェース契約 (スクリプト側)」節)。既定ではルート **`Project.toml`** の `name` に対応するモジュールをワーカーで `using` し、名前が違うときは **`--package NAME`**。特定のアプリ名に **ハードコードはしない**。
-
-**このランナーを使わない場合:** モデルやバッチ処理は **利用側アプリ** の `src/` や `scripts/` などに置く。分散が不要なら **この Kit を置かない / 削除してよい**。単一プロセスや、自分で起動する `julia -p N` / `julia -t N` だけなら Kit は不要。
-
-**取り込み方:** Git の **サブモジュール**、**サブツリー**、**URL からの `Pkg.add`**、単なる **ディレクトリコピー**のいずれでもよい。サブモジュールは親リポで Kit のコミットを固定しやすいが、**利用者全員がサブモジュールを使う必要はない** (ベンダー配布のコピーなど別経路でもよい)。
-
-## 手順
-
-```
-ParallelRunnerKit/runner.jl [--local N] [host1:W host2:W ...] script.jl [args...]
-        │
-        ▼
-[1] ワーカーを追加 (ローカル + リモート)
-        │
-        ▼
-[2] スクリプトを実行 (例: `scripts/jobs.jl --config configs/cell.json`)
-        │
-        │    典型: `Main.main()` が仕事を分割し、`pmap` 等でワーカーに回し、
-        │    ランごとの出力ディレクトリに成果物を書く
-        │
-        ▼
-[3] リモートから結果ファイルを回収
-```
-
-**対応関係**:
-- **ドライバ側:** `init_output_dir!` / `main()` を実装する (契約は [DEVELOPMENT.ja.md](docs/DEVELOPMENT.ja.md) の「インターフェース契約 (スクリプト側)」)。`main()` で単位ジョブを並列化し集約するのが一般的。
-- **ランナーキット** (`ParallelRunnerKit/`): ワーカーを足し、マスターでスクリプトを `ARGS` 付きで実行し、リモートの新しい結果ファイルを回収する (`runner.jl` のワークフロー)
-
-**再現性:** `runner.jl` は **`parallel_runner_kit_version()`** (`ParallelRunnerKit/Project.toml` の `version`) と、アプリ側プロジェクトディレクトリの **git 短縮ハッシュ** をログに出す。リモート利用時は従来どおりホスト間で **完全同一コミット** を要求する (**`--skip-hash-check`** で無効化可)。タグ・`Manifest.toml`・ワーカ自己申告など、より厳しくする候補は [DEVELOPMENT.ja.md](docs/DEVELOPMENT.ja.md) の「バージョン管理と再現性」を参照。
-
-## ファイル
-
-| ファイル | 説明 |
-|------|-------------|
-| `runner.jl` | ワーカープロセス (ローカル + リモート) を追加、スクリプトを実行、結果を回収 |
-| `setup.jl` | リモートホストでクローン、git の確認/同期、パッケージインストール、クリーンアップ |
-| `suggest_workers.jl` | 各ホストでパッケージをロードし RSS を計測、ワーカー割り当てを提案 |
-| `src/ParallelRunnerKit.jl` | モジュール: パス・ログ・SSH/git・ランナー CLI・メモリ/git 整合チェック (自前スクリプトからは `include(...); using .ParallelRunnerKit`、インストール済みなら `using ParallelRunnerKit`) |
-| `test/runtests.jl` | キット用テストの入口: アプリルートなら `julia --project=. ParallelRunnerKit/test/runtests.jl`、単体 Kit なら `julia --project=. test/runtests.jl` |
-| `test/test_parallel_runner_kit.jl` | `ParallelRunnerKit` のパス等のテスト (`test/runtests.jl` から include) |
-| `Project.toml` | ランナー用依存の明示 (`src/` 用の環境ではなく、持ち込み用の一覧) |
-| `.gitignore` | このディレクトリ単体を `--project` にしたときにできる `Manifest.toml` を無視 |
-| `templates/script_template.jl` | 動く最小ドライバ。試し: `ParallelRunnerKit/runner.jl --local 2 ParallelRunnerKit/templates/script_template.jl` |
-| `docs/` | 開発者向け: [DEVELOPMENT.md](docs/DEVELOPMENT.md)、[DEVELOPMENT.ja.md](docs/DEVELOPMENT.ja.md)、[目次 README](docs/README.md) |
-| `LICENSE` | MIT。単独の Git リポジトリとして公開可能 (サブモジュール・fork・単体 clone) |
-
-## 前提
-
-- **macOS:** ローカル (および想定するリモート) は **macOS** を前提とする。開発で触るのはこの環境のみ。
-- 全リモートホストへの **SSH 鍵認証** (パスワードなしログイン)
-- 全リモートホストからの **Git リモートアクセス** (GitHub なら `ssh -T git@github.com` で確認)
-- リモート上の **同じリポジトリ配置** が既定 (`setup.jl --clone` 後は `~/親ディレクトリ/リポ名`)。違う場所に置く場合は **`--remote-path`** / **`DISTRIBUTED_REMOTE_PROJECT_ROOT`** (パスが違うときは `runner.jl` 用にも同じ ENV を設定)
-- リモートホストに **Julia がインストール済み** (一般的な場所を自動検出)
-
-## クイックスタート
-
-```bash
-# 1. クローン (初回のみ)
-julia --project=. ParallelRunnerKit/setup.jl --clone HOST1 HOST2 ...
-
-# 2. 依存関係のインストール (初回のみ)
-julia --project=. ParallelRunnerKit/setup.jl --instantiate HOST1 HOST2 ...
-
-# 3. 前提条件の確認
-julia --project=. ParallelRunnerKit/setup.jl --check HOST1 HOST2 ...
-
-# 4. コードの同期 (ローカルでコミット後)
-julia --project=. ParallelRunnerKit/setup.jl --sync HOST1 HOST2 ...
-
-# 5. (任意) ベンチマークからワーカー数を提案
-julia --project=. ParallelRunnerKit/suggest_workers.jl --local HOST1 HOST2 ...
-
-# 6. ローカル + リモートワーカーでスクリプトを実行
-julia --project=. ParallelRunnerKit/runner.jl --local N HOST1:W HOST2:W ... path/to/script.jl [script_args...]
-```
-
-`HOST1 HOST2 ...` をホスト名に、`N` / `W` をホストごとのワーカー数に、`path/to/script.jl` をスクリプトと引数に置き換える。
-
-HTTPS の origin URL は自動で SSH 形式に変換される。
-
-## runner.jl
-
-ローカルとリモートのワーカープロセスを追加し、分散 `pmap` 対応のスクリプトを実行する。
-
-**ワークフロー**: git ハッシュ確認 → 残骸ワーカーのクリーンアップ → メモリ確認 → ワーカー追加 → 初期化 (プロジェクトの activate、パッケージのロード) → スクリプト実行 → リモートから結果回収
-
-### 使い方
-
-```bash
-julia --project=. ParallelRunnerKit/runner.jl [options] [hosts...] script.jl [script_args...]
-
-# ローカル + リモート (例: CLI 付きドライバ)
-julia --project=. ParallelRunnerKit/runner.jl --local 9 host1:10 host2:10 \
-  scripts/jobs.jl --config configs/cell.json
-
-# リモートのみ (マスターはローカル、ワーカーはリモート)
-julia --project=. ParallelRunnerKit/runner.jl host1:10 host2:10 \
-  scripts/jobs.jl --config configs/cell.json
-
-# ローカルのみ
-julia --project=. ParallelRunnerKit/runner.jl --local 9 \
-  scripts/jobs.jl --config configs/cell.json
-
-# data/sweep 以下でホストにあってローカルに無いファイルだけ再帰的に取得
-julia --project=. ParallelRunnerKit/runner.jl --collect-missing \
-  data/sweep m4-mini-lan m4-mini2-tb
-
-# リモート側を正として同一パスを上書きマージ
-julia --project=. ParallelRunnerKit/runner.jl --collect-overwrite data/sweep m4-mini-lan m4-mini2-tb
-```
-
-### オプション
-
-| オプション | 説明 |
-|--------|-------------|
-| `-l, --local N` | ローカルのワーカープロセス数 (デフォルト: 0) |
-| `-w, --workers N` | `:N` を明示しないリモートホストのデフォルトワーカー数 |
-| `--julia PATH` | リモートホストの Julia 実行ファイルパス |
-| `--skip-hash-check` | git のコミット検証をスキップ |
-| `--no-log` | コンソール出力をログファイルに書き込まない |
-| `--log-dir PATH` | ログ出力先 (デフォルト: スクリプトの出力先、または `<script_dir>/results`) |
-| `--collect-missing ROOT HOST...` | rsync: `ROOT` 以下でローカルに無い相対パスのファイルだけ取得 (`mkdir -p`、スクリプトは実行しない) |
-| `--collect-overwrite ROOT HOST...` | rsync: `ROOT` 以下を丸ごとマージ (同名はリモートで上書き) |
-| `--collect-tree`, `--collect-tree-sync` | `--collect-missing` / `--collect-overwrite` の別名 |
-| `hostname:N` | このホストで N ワーカーを使う (例: `host1:10`) |
-
-| 環境変数 | 説明 |
-|----------|-------------|
-| `DISTRIBUTED_OUTPUT_DIR` | 分散実行時の出力ディレクトリ (既定のランナーログ先・収集ルート未指定時の単一ツリー既定) |
-| `DISTRIBUTED_COLLECT_DIRS` | ラン終了後に rsync するローカルツリー (コロン区切り、絶対パスまたはリポジトリ相対)。指定時は単一ツリー既定を上書き |
-| `DISTRIBUTED_REMOTE_PROJECT_ROOT` | SSH ワーカー上のリポジトリルートの絶対パス (このマシンと違うときに指定; `setup.jl`・git 確認・`addprocs` の `--project`/`dir`・collect / sentinel の rsync で共有) |
-| `DISTRIBUTED_SSH_OPTS` | カスタム SSH オプション (スペース区切り) |
-| `JULIA_DISTRIBUTED_EXE` | リモートホストのデフォルト Julia パス |
-| `DISTRIBUTED_INIT_DELAY_SEC` | `addprocs` 後の接続安定化待ち (秒、デフォルト: 5) |
-| `DISTRIBUTED_PING_RETRIES` | ワーカー疎通確認のリトライ回数 (デフォルト: 6) |
-
-## setup.jl
-
-分散ジョブの実行前後にリモートホストを確認、同期、管理する。
-
-```bash
-julia --project=. ParallelRunnerKit/setup.jl --clone host1 host2       # リポジトリをクローン
-julia --project=. ParallelRunnerKit/setup.jl --check host1 host2       # 前提条件を確認
-julia --project=. ParallelRunnerKit/setup.jl --sync host1 host2        # push + pull
-julia --project=. ParallelRunnerKit/setup.jl --pull host1 host2        # 最新コードを pull (ローカル + リモート)
-julia --project=. ParallelRunnerKit/setup.jl --instantiate host1 host2 # Pkg.instantiate
-julia --project=. ParallelRunnerKit/setup.jl --cleanup host1 host2     # 残骸ワーカーを kill
-julia --project=. ParallelRunnerKit/setup.jl --delete host1 host2      # リモートのリポジトリを削除
-
-# 任意: clone URL やリモート上の配置パスを明示
-julia --project=. ParallelRunnerKit/setup.jl \
-  --repo git@github.com:ORG/MyApp.jl.git \
-  --remote-path /Users/shared/MyApp.jl \
-  --clone host1 host2
-export DISTRIBUTED_REMOTE_PROJECT_ROOT=/Users/shared/MyApp.jl   # runner.jl と揃える
-```
-
-| オプション / 変数 | 説明 |
-|-------------------|------|
-| `--repo URL` | clone 元 URL (既定: ローカルの `origin`; HTTPS の GitHub は SSH に変換) |
-| `--remote-path PATH` | リモート上のリポジトリルート (既定: `~/親/名前`、または `DISTRIBUTED_REMOTE_PROJECT_ROOT`) |
-| `DISTRIBUTED_REMOTE_PROJECT_ROOT` | setup と `runner.jl` で共有するリモート側ルート (リモート上の絶対パス推奨) |
-
-## 注意
-
-- **完全リセット**: `--delete` → `--clone` → `--instantiate` の順で実行
-
-## 結果の手動同期 (rsync)
-
-ジョブ終了時、runner はリモートホストから結果ファイルを回収する。実行が中断された (切断や Ctrl+C など) 場合や手動で結果を取りに行きたい場合は、ローカルマシンから `rsync` を使う。リモートのプロジェクトパスはローカルと同じにする。
-
-```bash
-# 単一ホスト — リモートの結果をローカルに pull (PROJ とサブパスを調整)
-rsync -avz HOST:PROJ/path/to/results/ ./path/to/results/
-
-# 複数ホスト
-for h in host1 host2 host3; do
-  rsync -avz $h:PROJ/path/to/results/ ./path/to/results/
-done
-```
-
-`PROJ` をリモートのプロジェクトルート (例: `~/projects/MySimulation.jl`) に、`path/to/results/` をスクリプトが使う出力ディレクトリに置き換える。
-
-## 長時間実行のジョブ
-
-- **tmux**: 切断に耐えられるよう `tmux new -s sweep` で実行 (デタッチ: `Ctrl+B, D`)
-- **ロギング**
-  - **tee** (tmux なし): stdout/stderr を表示しつつ保存:
-    ```bash
-    julia --project=. ParallelRunnerKit/runner.jl ... script.jl 2>&1 | tee run.log
-    ```
-  - **tmux pipe-pane** (tmux 内蔵、tmux セッション内で):
-    1. 通常通り tmux ペインでジョブを開始
-    2. ロギング**開始**: `Ctrl+B` を押して離し `:` (コロン) を入力。プロンプトで:
-       ```text
-       pipe-pane -o 'cat >> session.log'
-       ```
-       と入力して Enter。そのペインの全出力が `session.log` (パスはペインの cwd 相対) に追記される
-    3. ロギング**停止**: ステップ 2 と同じ — `Ctrl+B`、`:`、同じ `pipe-pane -o '...'` を再実行 (トグル)
-  - **キーバインド** (任意): `~/.tmux.conf` に追加:
-    ```text
-    bind P pipe-pane -o 'cat >> $HOME/tmux-#{session_name}.log'
-    ```
-    設定をリロード (`tmux source-file ~/.tmux.conf` または tmux を再起動)。以降、`Ctrl+B` の後 `P` で `~/tmux-SESSIONNAME.log` へのロギングをトグルできる
-  - **実行後に保存** (スクロールバックのみ): 実行中にロギングしなかった場合、ペインのスクロールバックに残っている分は保存できる。ペイン内で `Ctrl+B` の後 `:` を押して:
-    ```text
-    capture-pane -S -3000 -p > session.log
-    ```
-    そのペインの直近 3000 行を `session.log` に書き出す。`-3000` を変えれば行数を増減できる (`-S -` で全履歴)。ペインの履歴上限 (tmux の `history-limit`) が保持量の上限になる
-- **リモートのスリープ防止** (macOS): `sudo pmset -a sleep 0 && sudo pmset -a disablesleep 1`
-- **Thunderbolt ネットワーク** (macOS): Thunderbolt 経由で接続しているとき、TB サブシステムの電源遷移でリンクが切れることがある。全リモートホストで:
-  ```bash
-  sudo pmset -a powernap 0
-  sudo pmset -a displaysleep 0   # ヘッドレスなら 0、ディスプレイ使用なら 10 など
-  ```
-  `pmset -g` で確認。ジョブ後に戻すなら `sudo pmset -a powernap 1` と `sudo pmset -a displaysleep 10`
-- **SSH KeepAlive**: 組み込み済み (`ServerAliveInterval=60`、`ServerAliveCountMax=10` = 約 10 分まで許容)
-
-## suggest_workers.jl
-
-各ホストでプローブワーカーにプロジェクトパッケージをロードし、RSS を計測してから、RAM と CPU 制約からワーカー数を提案する。実験の種類を問わず動く — シミュレーション本体は不要。
-
-```bash
-julia --project=. ParallelRunnerKit/suggest_workers.jl [options] [--local] [hosts...]
-
-# ローカル + リモート
-julia --project=. ParallelRunnerKit/suggest_workers.jl --local host1 host2
-
-# リモートのみ
-julia --project=. ParallelRunnerKit/suggest_workers.jl host1 host2
-
-# 計測をスキップし、ワーカー 1 つあたり 1.5 GB を仮定
-julia --project=. ParallelRunnerKit/suggest_workers.jl --gb-per-worker 1.5 --local host1 host2
-```
-
-| オプション | 説明 |
-|--------|-------------|
-| `-l, --local` | 提案にローカルホストを含める |
-| `--gb-per-worker N` | 計測をスキップし、ワーカー 1 つあたり N GB を仮定 |
-| `--mem-headroom N` | メモリ上限の比率 (デフォルト: 0.75) |
-| `--master-gb N` | マスタープロセスに確保する量 (デフォルト: 0.4) |
-
-出力にはホストごとの RAM、コア数、計測されたワーカーあたりメモリ、`runner.jl` のコマンドテンプレートが含まれる。
-
-**なぜパッケージのロードだけ?** 検証済み: レプリケーション規模のシミュレーション (1100 エージェント、100 試行、300k ステップ) はパッケージロードに比べて約 0.04 GB しか追加で消費しない。10% のバッファと 0.5 GB の下限ですでに十分な余裕がある。シミュレーションベースの計測は不要として削除した。
-
-## メモリチェック
-
-runner は前回実行から残っているワーカーをクリーンアップした後にメモリ容量を確認する:
-
-1. **残骸ワーカーのクリーンアップ** — メモリ計測を正確にするため、全ホストで残っている Julia ワーカープロセスを kill する
-2. **ワーカーあたりの推定** — マスタープロセスの RSS (`Sys.maxrss()`) × 1.2、下限 0.5GB (RSS が取れない場合は 1.5GB)
-3. **容量チェック** — `N ワーカー × 推定値` がいずれかのホストの全 RAM の 70% を超えると警告
-   - ローカル: `Sys.total_memory()` から取得
-   - リモート: SSH 経由で取得 (macOS は `sysctl`、Linux は `/proc/meminfo`)
-
-**ヒント**:
-- 16GB RAM のホストなら最大 ~9 ワーカーが安全圏
-- ワーカー数は CPU コア数**と**メモリの両方に合わせる
-- 実行中は `htop` などでリモートを監視
-
-## 開発者向け
-
-`ParallelRunnerKit/` の設計意図と、将来 `DistributedRunner.jl` (仮称) として再利用可能なパッケージに切り出すためのロードマップは [DEVELOPMENT.ja.md](docs/DEVELOPMENT.ja.md) にまとめている。
+このリポジトリの `[deps]` をホストの `Project.toml` にマージし、スクリプトパスに `ParallelRunnerKit/` を付ける (例: `ParallelRunnerKit/runner.jl`)。ドライバには上記の `init_output_dir!` / `main()` を実装する。ワーカーで load するモジュール名がホストの `name` と違う場合は `runner.jl --package NAME`。
 
 ## トラブルシューティング
 
-| 問題 | 解決策 |
-|---------|----------|
-| git ハッシュの不一致 | リモートで `--sync` または `--pull` を実行 |
-| リモートで Julia が見つからない | `--julia /path/to/julia` か `JULIA_DISTRIBUTED_EXE` を設定 |
-| SSH タイムアウト | `DISTRIBUTED_SSH_OPTS="-o ConnectTimeout=10"` を調整 |
-| 実行中にワーカーが落ちる | リモートでパッケージが precompile 済みか確認、手動実行でエラーを確認 |
-| Broken pipe エラー | リモートワーカーがクラッシュ、メモリ・ディスク容量・テストジョブを確認 |
-| 接続リセット (長時間ジョブ) | リモートのスリープを無効化、ローカルで tmux を使う |
-| TB リンク断 (Thunderbolt) | リモートで `powernap 0` と `displaysleep 0` (長時間実行のジョブを参照) |
-| 起動時のメモリ警告 | `--local N` か `host:N` を減らす。残骸ワーカーは自動でクリーンアップされる |
-| クラッシュ後の残骸ワーカー | `--cleanup host1 host2` を実行、または runner を再起動 (自動クリーンアップ) |
-| `attempt to send to unknown socket` | `addprocs` 直後の競合。`DISTRIBUTED_INIT_DELAY_SEC=10` などで待機を延長 |
+| 問題 | 対処 |
+|------|------|
+| ホスト間で git ハッシュ不一致 | `setup.jl --sync` または `--pull` |
+| リモートで Julia 未検出 | `--julia PATH` または `JULIA_DISTRIBUTED_EXE` |
+| 残骸ワーカー | `setup.jl --cleanup` |
+| `attempt to send to unknown socket` | `DISTRIBUTED_INIT_DELAY_SEC=10` |
 
 ## ライセンス
 
-MIT — [`LICENSE`](LICENSE) を参照。このツリーは通常の Git プロジェクトとして単独リポジトリ化し、タグ付けリリースや他アプリへのサブモジュール / subtree 追加が可能です。
+MIT — [`LICENSE`](LICENSE)

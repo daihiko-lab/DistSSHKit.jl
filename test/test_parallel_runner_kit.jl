@@ -35,6 +35,22 @@ using Test
         @test resolve_pkg_project_dir(nested) == dirname(nested)
     end
 
+    # -- runner_kit_project_root -------------------------------------------
+    mktempdir() do tmp
+        d = abspath(string(tmp))
+        write(joinpath(d, "Project.toml"), "name = \"ParallelRunnerKit\"\n")
+        @test runner_kit_project_root(d) == d
+    end
+    mktempdir() do tmp
+        d = abspath(string(tmp))
+        app = joinpath(d, "MyApp")
+        kit = joinpath(app, "ParallelRunnerKit")
+        mkpath(kit)
+        write(joinpath(app, "Project.toml"), "name = \"MyApp\"\n")
+        write(joinpath(kit, "Project.toml"), "name = \"ParallelRunnerKit\"\n")
+        @test runner_kit_project_root(kit) == app
+    end
+
     mktempdir() do tmp
         d = abspath(string(tmp))
         @test project_package_name(d) === nothing

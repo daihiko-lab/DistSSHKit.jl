@@ -6,7 +6,8 @@ Load the project package on each host and measure RSS as a per-worker
 baseline, then suggest worker counts from RAM and CPU constraints.
 
 Usage:
-  julia --project=. ParallelRunnerKit/suggest_workers.jl [options] [--local] [hosts...]
+  julia --project=. suggest_workers.jl [options] [--local] [hosts...]
+  # When embedded under a host app: ParallelRunnerKit/suggest_workers.jl
 
 Options:
   -l, --local         Include localhost in suggestion (omit for remote-only)
@@ -21,10 +22,13 @@ Examples:
 """
 
 const RUNNER_KIT_DIR = @__DIR__
-const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT", dirname(RUNNER_KIT_DIR))
 
 include(joinpath(RUNNER_KIT_DIR, "src", "ParallelRunnerKit.jl"))
 using .ParallelRunnerKit
+
+const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
+    runner_kit_project_root(RUNNER_KIT_DIR)
+end
 
 using Distributed
 using Pkg
@@ -47,7 +51,7 @@ function parse_args(args::Vector{String})
 
     i = 1
     while i <= length(args)
-        arg = args[i]
+        arg = String(args[i])
         if arg in ["-h", "--help"]
             println(read(@__FILE__, String))
             exit(0)

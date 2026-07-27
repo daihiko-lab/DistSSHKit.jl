@@ -25,7 +25,9 @@ See `--help` for the complete option/environment reference.
 include(joinpath(@__DIR__, "src", "ParallelRunnerKit.jl"))
 using .ParallelRunnerKit
 
-const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT", dirname(@__DIR__))
+const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
+    runner_kit_project_root(@__DIR__)
+end
 
 const _PATH_ANCHOR = abspath(expanduser(String(PROJECT_ROOT)))
 
@@ -426,8 +428,11 @@ end
 
 """Resolve clone URL: `--repo` wins, else local `origin` (HTTPS GitHub → SSH)."""
 function resolve_clone_url(repo_override::Union{Nothing,String})
-    if repo_override !== nothing && !isempty(strip(repo_override))
-        return normalize_git_clone_url(repo_override)
+    if repo_override isa String
+        url = strip(repo_override)
+        if !isempty(url)
+            return normalize_git_clone_url(url)
+        end
     end
     url = clone_url_from_local_origin(String(PROJECT_ROOT))
     url === nothing && error("Could not read git remote `origin`; pass --repo URL")
