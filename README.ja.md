@@ -20,7 +20,7 @@ English: [README.md](README.md)
 | 何をするか | `Pkg.Apps` でパッケージを入れ、`prunner` 等をシェルから使う | `runner.jl` 等を `julia --project=.` で直接呼ぶ |
 | キットの置き方 | リポジトリにキットを置かない。Julia のパッケージ環境にインストール | リポジトリを clone、または `MyApp.jl/ParallelRunnerKit/` に submodule 等 |
 | **どこで実行するか** | **アプリルート** (`Project.toml` があるディレクトリ) | 同左 |
-| 起動例 | `prunner ...` (`--project` 不要) | `julia --project=. ParallelRunnerKit/runner.jl ...` |
+| 起動例 | `prunner ...` (`--project` 不要) | `julia --project=. ParallelRunnerKit/src/runner.jl ...` |
 | ツール | `prunner` / `psetup` / `psuggest` | `runner.jl` / `setup.jl` / `suggest_workers.jl` |
 
 **まず 1 を試すなら実験的機能に注意。** Julia 1.12 の [Pkg Apps](https://pkgdocs.julialang.org/v1/apps/) 依存で、コマンド名・インストール手順・挙動は変わる可能性がある。**安定運用は 2 (CLI スクリプト)。**
@@ -106,40 +106,40 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
 ```bash
 # リモート準備 (初回)
-julia --project=. ParallelRunnerKit/setup.jl --clone HOST1 HOST2 ...
-julia --project=. ParallelRunnerKit/setup.jl --instantiate HOST1 HOST2 ...
+julia --project=. ParallelRunnerKit/src/setup.jl --clone HOST1 HOST2 ...
+julia --project=. ParallelRunnerKit/src/setup.jl --instantiate HOST1 HOST2 ...
 
 # コード同期
-julia --project=. ParallelRunnerKit/setup.jl --sync HOST1 HOST2 ...
+julia --project=. ParallelRunnerKit/src/setup.jl --sync HOST1 HOST2 ...
 
 # 分散実行
-julia --project=. ParallelRunnerKit/runner.jl --local N HOST1:W HOST2:W ... scripts/jobs.jl [args...]
+julia --project=. ParallelRunnerKit/src/runner.jl --local N HOST1:W HOST2:W ... scripts/jobs.jl [args...]
 
 # ワーカー数の目安
-julia --project=. ParallelRunnerKit/suggest_workers.jl --local HOST1 HOST2
+julia --project=. ParallelRunnerKit/src/suggest_workers.jl --local HOST1 HOST2
 ```
 
-- パスは `ParallelRunnerKit/` 付き (submodule 名が違えば読み替える)。
+- パスは `ParallelRunnerKit/src/` 付き (submodule 名が違えば読み替える)。
 - ワーカーで load するモジュール名がホストの `name` と違うときは `--package NAME`。
 
 ### 2-b. このリポジトリ単体で試す
 
-キット開発・検証用。パスに `ParallelRunnerKit/` は付けない。
+キット開発・検証用。パスは `src/` 付き (`ParallelRunnerKit/` プレフィックスなし)。
 
 ```bash
 git clone https://github.com/daihiko-lab/ParallelRunnerKit.jl.git
 cd ParallelRunnerKit.jl
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
-julia --project=. runner.jl --local 2 templates/script_template.jl
-julia --project=. setup.jl --help
+julia --project=. src/runner.jl --local 2 templates/script_template.jl
+julia --project=. src/setup.jl --help
 ```
 
 ヘルプ:
 
 ```bash
-julia --project=. ParallelRunnerKit/runner.jl --help    # 2-a
-julia --project=. runner.jl --help                      # 2-b
+julia --project=. ParallelRunnerKit/src/runner.jl --help    # 2-a
+julia --project=. src/runner.jl --help                      # 2-b
 ```
 
 ## 環境・SSH の基準
@@ -147,7 +147,7 @@ julia --project=. runner.jl --help                      # 2-b
 リモートホストを使う場合 (1/2 共通)、次を **事前に満たす** こと。
 
 - **1 (パッケージアプリ):** `psetup --check HOST ...`
-- **2 (CLI):** `julia --project=. ParallelRunnerKit/setup.jl --check HOST ...`
+- **2 (CLI):** `julia --project=. ParallelRunnerKit/src/setup.jl --check HOST ...`
 
 ### 検証環境
 
@@ -186,7 +186,7 @@ julia --project=. runner.jl --help                      # 2-b
 ```bash
 cd ~/GitHub/MyApp.jl
 psetup --check host1 host2                                           # 1
-# julia --project=. ParallelRunnerKit/setup.jl --check host1 host2  # 2
+# julia --project=. ParallelRunnerKit/src/setup.jl --check host1 host2  # 2
 ```
 
 ### 初回セットアップ (リモートあり)
@@ -198,7 +198,7 @@ psetup --instantiate HOST ...
 psetup --check HOST ...
 psetup --sync HOST ...
 
-# 2 (CLI スクリプト): psetup を ParallelRunnerKit/setup.jl に置き換え
+# 2 (CLI スクリプト): psetup を ParallelRunnerKit/src/setup.jl に置き換え
 ```
 
 ローカルのみ (`--local N` のみ) なら SSH / リモートパスは不要。
@@ -226,7 +226,7 @@ psetup --sync HOST ...
 | `attempt to send to unknown socket` | `DISTRIBUTED_INIT_DELAY_SEC=10` |
 | 1: `prunner` が見つからない | `~/.julia/bin` を PATH に追加 |
 | 1: 別ディレクトリのプロジェクト | `export DISTRIBUTED_PROJECT_ROOT=...` |
-| 2: `runner.jl` が見つからない | アプリルートか、`ParallelRunnerKit/` 付きパスか確認 |
+| 2: `src/runner.jl` が見つからない | アプリルートか、`ParallelRunnerKit/src/` 付きパスか確認 |
 | SSH が失敗 | 鍵認証と `ssh HOST echo ok`。 [環境・SSH の基準](#環境ssh-の基準) |
 | リモートのパスが合わない | `DISTRIBUTED_REMOTE_PROJECT_ROOT` + `--check` |
 

@@ -1,7 +1,7 @@
 # Julia / Pkg
 Manifest.toml
 
-# Local runs (prunner / runner.jl, templates)
+# Local runs (prunner / src/runner.jl, templates)
 templates/results/
 runner_*.log
 

@@ -40,6 +40,9 @@ using Test
         d = abspath(string(tmp))
         write(joinpath(d, "Project.toml"), "name = \"ParallelRunnerKit\"\n")
         @test runner_kit_project_root(d) == d
+        src = joinpath(d, "src")
+        mkpath(src)
+        @test runner_kit_project_root(src) == d
     end
     mktempdir() do tmp
         d = abspath(string(tmp))
@@ -49,6 +52,9 @@ using Test
         write(joinpath(app, "Project.toml"), "name = \"MyApp\"\n")
         write(joinpath(kit, "Project.toml"), "name = \"ParallelRunnerKit\"\n")
         @test runner_kit_project_root(kit) == app
+        src = joinpath(kit, "src")
+        mkpath(src)
+        @test runner_kit_project_root(src) == app
     end
 
     mktempdir() do tmp
@@ -319,9 +325,9 @@ using Test
     end
 
     # -- Pkg app bridge (_run_kit_cli_script) -----------------------------
-    @test isdefined(ParallelRunnerKit, :Runner)
-    @test isdefined(ParallelRunnerKit, :Setup)
-    @test isdefined(ParallelRunnerKit, :Suggest)
+    @test isdefined(ParallelRunnerKit, :AppRunner)
+    @test isdefined(ParallelRunnerKit, :AppSetup)
+    @test isdefined(ParallelRunnerKit, :AppSuggest)
 
     let fixture = abspath(joinpath(@__DIR__, "fixtures", "cli_echo_args.jl"))
         # Regression: app launcher may pass `ARGS` itself; must not empty before snapshot.
@@ -358,9 +364,9 @@ end
 @testset "Pkg [apps] in Project.toml" begin
     using TOML
     apps = get(TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml")), "apps", Dict{String,Any}())
-    @test get(get(apps, "prunner", Dict()), "submodule", "") == "Runner"
-    @test get(get(apps, "psetup", Dict()), "submodule", "") == "Setup"
-    @test get(get(apps, "psuggest", Dict()), "submodule", "") == "Suggest"
+    @test get(get(apps, "prunner", Dict()), "submodule", "") == "AppRunner"
+    @test get(get(apps, "psetup", Dict()), "submodule", "") == "AppSetup"
+    @test get(get(apps, "psuggest", Dict()), "submodule", "") == "AppSuggest"
 end
 
 @testset "host Project.toml merges kit [deps] (monorepo layout)" begin

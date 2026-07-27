@@ -3,14 +3,14 @@
 Clone, check prerequisites, and sync code to remote hosts for distributed execution.
 
 Usage:
-  julia --project=. ParallelRunnerKit/setup.jl                     # Show requirements
-  julia --project=. ParallelRunnerKit/setup.jl --clone hosts...    # Clone repository
-  julia --project=. ParallelRunnerKit/setup.jl --delete hosts...   # Delete remote repositories
-  julia --project=. ParallelRunnerKit/setup.jl --check hosts...    # Check prerequisites
-  julia --project=. ParallelRunnerKit/setup.jl --pull hosts...     # Pull on all hosts
-  julia --project=. ParallelRunnerKit/setup.jl --sync hosts...     # Push + pull
-  julia --project=. ParallelRunnerKit/setup.jl --instantiate hosts... # Pkg.instantiate on remotes
-  julia --project=. ParallelRunnerKit/setup.jl --cleanup hosts...  # Kill stale worker processes
+  julia --project=. ParallelRunnerKit/src/setup.jl                     # Show requirements
+  julia --project=. ParallelRunnerKit/src/setup.jl --clone hosts...    # Clone repository
+  julia --project=. ParallelRunnerKit/src/setup.jl --delete hosts...   # Delete remote repositories
+  julia --project=. ParallelRunnerKit/src/setup.jl --check hosts...    # Check prerequisites
+  julia --project=. ParallelRunnerKit/src/setup.jl --pull hosts...     # Pull on all hosts
+  julia --project=. ParallelRunnerKit/src/setup.jl --sync hosts...     # Push + pull
+  julia --project=. ParallelRunnerKit/src/setup.jl --instantiate hosts... # Pkg.instantiate on remotes
+  julia --project=. ParallelRunnerKit/src/setup.jl --cleanup hosts...  # Kill stale worker processes
 
 Optional overrides:
   --repo URL              Clone URL (default: local `origin`, HTTPS GitHub → SSH)
@@ -22,7 +22,7 @@ Optional overrides:
 See `--help` for the complete option/environment reference.
 """
 
-include(joinpath(@__DIR__, "src", "ParallelRunnerKit.jl"))
+include(joinpath(@__DIR__, "ParallelRunnerKit.jl"))
 using .ParallelRunnerKit
 
 const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
@@ -51,16 +51,16 @@ function show_requirements()
     println()
     print_warn("Initial Setup (example with 3 hosts)")
     println()
-    println("  julia --project=. ParallelRunnerKit/setup.jl \\")
+    println("  julia --project=. ParallelRunnerKit/src/setup.jl \\")
     println("    --clone host1 host2 host3")
-    println("  julia --project=. ParallelRunnerKit/setup.jl \\")
+    println("  julia --project=. ParallelRunnerKit/src/setup.jl \\")
     println("    --instantiate host1 host2 host3")
-    println("  julia --project=. ParallelRunnerKit/setup.jl \\")
+    println("  julia --project=. ParallelRunnerKit/src/setup.jl \\")
     println("    --check host1 host2 host3")
     println()
     print_warn("Different remote path or fork URL")
     println()
-    println("  julia --project=. ParallelRunnerKit/setup.jl \\")
+    println("  julia --project=. ParallelRunnerKit/src/setup.jl \\")
     println("    --repo git@github.com:ORG/App.jl.git \\")
     println("    --remote-path /Users/shared/App.jl \\")
     println("    --clone host1 host2")
@@ -68,9 +68,9 @@ function show_requirements()
     println()
     print_warn("Daily Use")
     println()
-    println("  julia --project=. ParallelRunnerKit/setup.jl \\")
+    println("  julia --project=. ParallelRunnerKit/src/setup.jl \\")
     println("    --sync host1 host2 host3")
-    println("  julia --project=. ParallelRunnerKit/runner.jl \\")
+    println("  julia --project=. ParallelRunnerKit/src/runner.jl \\")
     println("    --local 8 host1:8 host2:8 host3:8 script.jl")
 end
 
@@ -382,11 +382,11 @@ end
 function show_usage()
     println("""
 Usage:
-  julia --project=. ParallelRunnerKit/setup.jl
-  julia --project=. ParallelRunnerKit/setup.jl --clone hosts...
-  julia --project=. ParallelRunnerKit/setup.jl --check hosts...
-  julia --project=. ParallelRunnerKit/setup.jl --pull hosts...
-  julia --project=. ParallelRunnerKit/setup.jl --sync hosts...
+  julia --project=. ParallelRunnerKit/src/setup.jl
+  julia --project=. ParallelRunnerKit/src/setup.jl --clone hosts...
+  julia --project=. ParallelRunnerKit/src/setup.jl --check hosts...
+  julia --project=. ParallelRunnerKit/src/setup.jl --pull hosts...
+  julia --project=. ParallelRunnerKit/src/setup.jl --sync hosts...
 
 Commands:
   (none)          Show requirements for distributed execution
@@ -415,14 +415,14 @@ Arguments:
   hosts...        Remote hosts (user@host format)
 
 Examples:
-  julia --project=. ParallelRunnerKit/setup.jl
-  julia --project=. ParallelRunnerKit/setup.jl --clone host1 host2
-  julia --project=. ParallelRunnerKit/setup.jl --repo git@github.com:ORG/App.jl.git --clone host1
-  julia --project=. ParallelRunnerKit/setup.jl --remote-path ~/work/App.jl --clone host1 host2
-  julia --project=. ParallelRunnerKit/setup.jl --check host1 host2
-  julia --project=. ParallelRunnerKit/setup.jl --pull host1 host2
-  julia --project=. ParallelRunnerKit/setup.jl --instantiate host1 host2
-  julia --project=. ParallelRunnerKit/setup.jl --cleanup host1 host2
+  julia --project=. ParallelRunnerKit/src/setup.jl
+  julia --project=. ParallelRunnerKit/src/setup.jl --clone host1 host2
+  julia --project=. ParallelRunnerKit/src/setup.jl --repo git@github.com:ORG/App.jl.git --clone host1
+  julia --project=. ParallelRunnerKit/src/setup.jl --remote-path ~/work/App.jl --clone host1 host2
+  julia --project=. ParallelRunnerKit/src/setup.jl --check host1 host2
+  julia --project=. ParallelRunnerKit/src/setup.jl --pull host1 host2
+  julia --project=. ParallelRunnerKit/src/setup.jl --instantiate host1 host2
+  julia --project=. ParallelRunnerKit/src/setup.jl --cleanup host1 host2
 """)
 end
 

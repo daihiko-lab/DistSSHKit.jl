@@ -20,13 +20,13 @@ Workflow:
 
 Usage:
   # Remote hosts only (master process on local, workers on remotes)
-  julia --project=. ParallelRunnerKit/runner.jl host1:10 host2:10 script.jl --args
+  julia --project=. ParallelRunnerKit/src/runner.jl host1:10 host2:10 script.jl --args
 
   # Local + remote (9 local workers + 20 remote = 29 total worker processes)
-  julia --project=. ParallelRunnerKit/runner.jl --local 9 host1:10 host2:10 script.jl --args
+  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 host1:10 host2:10 script.jl --args
 
   # Local only (9 worker processes)
-  julia --project=. ParallelRunnerKit/runner.jl --local 9 script.jl --args
+  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 script.jl --args
 
 Host specification:
   hostname        Use default worker count (1 or --workers N)
@@ -64,20 +64,20 @@ Prerequisites:
 
 Example (full workflow):
   # 1. Sync code to remotes
-  julia --project=. ParallelRunnerKit/setup.jl --sync host1 host2
+  julia --project=. ParallelRunnerKit/src/setup.jl --sync host1 host2
 
   # 2. Run a driver script with 29 worker processes (9 local + 10 + 10 remote)
-  julia --project=. ParallelRunnerKit/runner.jl --local 9 host1:10 host2:10 \\
+  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 host1:10 host2:10 \\
       scripts/jobs.jl --config configs/cell.json
 
-See also: ParallelRunnerKit/setup.jl, ParallelRunnerKit/README.md
+See also: ParallelRunnerKit/src/setup.jl, ParallelRunnerKit/README.md
 """
 
 using Distributed
 using Dates
 using Pkg
 
-include(joinpath(@__DIR__, "src", "ParallelRunnerKit.jl"))
+include(joinpath(@__DIR__, "ParallelRunnerKit.jl"))
 using .ParallelRunnerKit
 
 # Project root for git checks (same as setup.jl; script-path-derived proj_dir used for execution)
@@ -291,7 +291,7 @@ function runner_main()
                 writeln_both("Git hash mismatch on $(join(mismatches, ", "))")
                 writeln_both("")
                 writeln_both("To sync, run:")
-                print_info("  julia --project=. ParallelRunnerKit/setup.jl --sync $(join(mismatches, " "))\n")
+                print_info("  julia --project=. ParallelRunnerKit/src/setup.jl --sync $(join(mismatches, " "))\n")
                 writeln_both("")
                 writeln_both("Or skip check (not recommended):")
                 print_warn("  --skip-hash-check\n")

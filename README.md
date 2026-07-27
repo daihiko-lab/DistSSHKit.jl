@@ -20,7 +20,7 @@ If you use remote hosts, read [Environment & SSH](#environment--ssh) before the 
 | What you do | Install via `Pkg.Apps`, then run `prunner`, etc. from the shell | Call `runner.jl`, etc. with `julia --project=.` |
 | How the kit is present | Not vendored in your repo; installed in the Julia package environment | Clone or `MyApp.jl/ParallelRunnerKit/` submodule in your repo |
 | **Where you run** | Your **app root** (directory with `Project.toml`) | Same |
-| Example | `prunner ...` (no `--project`) | `julia --project=. ParallelRunnerKit/runner.jl ...` |
+| Example | `prunner ...` (no `--project`) | `julia --project=. ParallelRunnerKit/src/runner.jl ...` |
 | Tools | `prunner` / `psetup` / `psuggest` | `runner.jl` / `setup.jl` / `suggest_workers.jl` |
 
 **Option 1 uses experimental Julia 1.12 [Pkg Apps](https://pkgdocs.julialang.org/v1/apps/)** — command names, install steps, and behavior may change. **For stable day-to-day use, prefer option 2 (script CLI).**
@@ -106,40 +106,40 @@ julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
 ```bash
 # Remote setup (first time)
-julia --project=. ParallelRunnerKit/setup.jl --clone HOST1 HOST2 ...
-julia --project=. ParallelRunnerKit/setup.jl --instantiate HOST1 HOST2 ...
+julia --project=. ParallelRunnerKit/src/setup.jl --clone HOST1 HOST2 ...
+julia --project=. ParallelRunnerKit/src/setup.jl --instantiate HOST1 HOST2 ...
 
 # Sync code
-julia --project=. ParallelRunnerKit/setup.jl --sync HOST1 HOST2 ...
+julia --project=. ParallelRunnerKit/src/setup.jl --sync HOST1 HOST2 ...
 
 # Distributed run
-julia --project=. ParallelRunnerKit/runner.jl --local N HOST1:W HOST2:W ... scripts/jobs.jl [args...]
+julia --project=. ParallelRunnerKit/src/runner.jl --local N HOST1:W HOST2:W ... scripts/jobs.jl [args...]
 
 # Worker-count hints
-julia --project=. ParallelRunnerKit/suggest_workers.jl --local HOST1 HOST2
+julia --project=. ParallelRunnerKit/src/suggest_workers.jl --local HOST1 HOST2
 ```
 
-- Paths use the `ParallelRunnerKit/` prefix (adjust if your submodule path differs).
+- Paths use the `ParallelRunnerKit/src/` prefix (adjust if your submodule path differs).
 - If the worker module name differs from your `Project.toml` `name`, use `--package NAME`.
 
 ### 2-b. This repository standalone
 
-For developing or smoke-testing the kit itself. No `ParallelRunnerKit/` prefix.
+For developing or smoke-testing the kit itself. Use `src/` paths (no `ParallelRunnerKit/` prefix).
 
 ```bash
 git clone https://github.com/daihiko-lab/ParallelRunnerKit.jl.git
 cd ParallelRunnerKit.jl
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
 
-julia --project=. runner.jl --local 2 templates/script_template.jl
-julia --project=. setup.jl --help
+julia --project=. src/runner.jl --local 2 templates/script_template.jl
+julia --project=. src/setup.jl --help
 ```
 
 Help:
 
 ```bash
-julia --project=. ParallelRunnerKit/runner.jl --help    # 2-a
-julia --project=. runner.jl --help                      # 2-b
+julia --project=. ParallelRunnerKit/src/runner.jl --help    # 2-a
+julia --project=. src/runner.jl --help                      # 2-b
 ```
 
 ## Environment & SSH
@@ -147,7 +147,7 @@ julia --project=. runner.jl --help                      # 2-b
 When using remote hosts (1 or 2), **set these up first**.
 
 - **1 (package app):** `psetup --check HOST ...`
-- **2 (scripts):** `julia --project=. ParallelRunnerKit/setup.jl --check HOST ...`
+- **2 (scripts):** `julia --project=. ParallelRunnerKit/src/setup.jl --check HOST ...`
 
 ### Tested platform
 
@@ -186,7 +186,7 @@ Default SSH options when `DISTRIBUTED_SSH_OPTS` is unset: `BatchMode=yes`, `Conn
 ```bash
 cd ~/GitHub/MyApp.jl
 psetup --check host1 host2                                           # 1
-# julia --project=. ParallelRunnerKit/setup.jl --check host1 host2  # 2
+# julia --project=. ParallelRunnerKit/src/setup.jl --check host1 host2  # 2
 ```
 
 ### First-time remote setup
@@ -198,7 +198,7 @@ psetup --instantiate HOST ...
 psetup --check HOST ...
 psetup --sync HOST ...
 
-# 2 (script CLI): replace psetup with ParallelRunnerKit/setup.jl
+# 2 (script CLI): replace psetup with ParallelRunnerKit/src/setup.jl
 ```
 
 Local workers only (`--local N`): SSH and remote paths not required.
@@ -226,7 +226,7 @@ Local workers only (`--local N`): SSH and remote paths not required.
 | `attempt to send to unknown socket` | `DISTRIBUTED_INIT_DELAY_SEC=10` |
 | 1: `prunner` not found | Add `~/.julia/bin` to PATH |
 | 1: different project directory | `export DISTRIBUTED_PROJECT_ROOT=...` |
-| 2: `runner.jl` not found | App root and `ParallelRunnerKit/` prefix |
+| 2: `src/runner.jl` not found | App root and `ParallelRunnerKit/src/` prefix |
 | SSH fails | Key auth + `ssh HOST echo ok`; see [Environment & SSH](#environment--ssh) |
 | Remote path mismatch | `DISTRIBUTED_REMOTE_PROJECT_ROOT` + `--check` |
 
