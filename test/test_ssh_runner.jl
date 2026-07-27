@@ -2,12 +2,11 @@ using Test
 
 @testset "SSHRunner (path helpers)" begin
     include(joinpath(@__DIR__, "..", "src", "SSHRunner.jl"))
-    using .SSHRunner
 
     # -- short_path --------------------------------------------------------
     let home = expanduser("~")
-        @test short_path(joinpath(home, "foo", "bar")) == joinpath("~", "foo", "bar")
-        @test short_path("/not/under/home") == "/not/under/home"
+        @test SSHRunner.short_path(joinpath(home, "foo", "bar")) == joinpath("~", "foo", "bar")
+        @test SSHRunner.short_path("/not/under/home") == "/not/under/home"
     end
 
     # -- _project_toml_version ---------------------------------------------
@@ -26,23 +25,23 @@ using Test
     mktempdir() do tmp
         d = abspath(string(tmp))
         write(joinpath(d, "Project.toml"), "name = \"SoloApp\"\n")
-        @test resolve_pkg_project_dir(d) == d
+        @test SSHRunner.resolve_pkg_project_dir(d) == d
     end
     mktempdir() do tmp
         d = abspath(string(tmp))
         nested = joinpath(d, "a", "b", "c")
         mkpath(nested)
-        @test resolve_pkg_project_dir(nested) == dirname(nested)
+        @test SSHRunner.resolve_pkg_project_dir(nested) == dirname(nested)
     end
 
     # -- runner_kit_project_root -------------------------------------------
     mktempdir() do tmp
         d = abspath(string(tmp))
         write(joinpath(d, "Project.toml"), "name = \"SSHRunner\"\n")
-        @test runner_kit_project_root(d) == d
+        @test SSHRunner.runner_kit_project_root(d) == d
         src = joinpath(d, "src")
         mkpath(src)
-        @test runner_kit_project_root(src) == d
+        @test SSHRunner.runner_kit_project_root(src) == d
     end
     mktempdir() do tmp
         d = abspath(string(tmp))
@@ -51,17 +50,17 @@ using Test
         mkpath(kit)
         write(joinpath(app, "Project.toml"), "name = \"MyApp\"\n")
         write(joinpath(kit, "Project.toml"), "name = \"SSHRunner\"\n")
-        @test runner_kit_project_root(kit) == app
+        @test SSHRunner.runner_kit_project_root(kit) == app
         src = joinpath(kit, "src")
         mkpath(src)
-        @test runner_kit_project_root(src) == app
+        @test SSHRunner.runner_kit_project_root(src) == app
     end
 
     mktempdir() do tmp
         d = abspath(string(tmp))
-        @test project_package_name(d) === nothing
+        @test SSHRunner.project_package_name(d) === nothing
         write(joinpath(d, "Project.toml"), "name = \"FooBar\"\n")
-        @test project_package_name(d) == "FooBar"
+        @test SSHRunner.project_package_name(d) == "FooBar"
     end
 
     mktempdir() do tmp
@@ -69,7 +68,7 @@ using Test
         mkpath(joinpath(root, "kitstub"))
         write(joinpath(root, "Project.toml"), "name = \"App\"\n")
         write(joinpath(root, "kitstub", "Project.toml"), "name = \"SSHRunner\"\n")
-        @test resolve_pkg_project_dir(joinpath(root, "kitstub")) == root
+        @test SSHRunner.resolve_pkg_project_dir(joinpath(root, "kitstub")) == root
     end
 
     # -- resolve_pkg_project_dir: embedded app scripts, standalone kit, nested projects
@@ -82,17 +81,17 @@ using Test
         mkpath(joinpath(kit, "src"))
         write(joinpath(app, "Project.toml"), "name = \"MyApp\"\n")
         write(joinpath(kit, "Project.toml"), "name = \"SSHRunner\"\n")
-        @test resolve_pkg_project_dir(scripts) == app
-        @test runner_kit_project_root(joinpath(kit, "src")) == app
-        @test runner_kit_project_root(kit) == app
+        @test SSHRunner.resolve_pkg_project_dir(scripts) == app
+        @test SSHRunner.runner_kit_project_root(joinpath(kit, "src")) == app
+        @test SSHRunner.runner_kit_project_root(kit) == app
     end
     mktempdir() do tmp
         root = abspath(string(tmp))
         write(joinpath(root, "Project.toml"), "name = \"SSHRunner\"\n")
         nested = joinpath(root, "templates")
         mkpath(nested)
-        @test resolve_pkg_project_dir(nested) == root
-        @test runner_kit_project_root(joinpath(root, "src")) == root
+        @test SSHRunner.resolve_pkg_project_dir(nested) == root
+        @test SSHRunner.runner_kit_project_root(joinpath(root, "src")) == root
     end
     mktempdir() do tmp
         root = abspath(string(tmp))
@@ -101,7 +100,7 @@ using Test
         mkpath(script_dir)
         write(joinpath(root, "Project.toml"), "name = \"MyApp\"\n")
         write(joinpath(subpkg, "Project.toml"), "name = \"SubPkg\"\n")
-        @test resolve_pkg_project_dir(script_dir) == subpkg
+        @test SSHRunner.resolve_pkg_project_dir(script_dir) == subpkg
     end
     mktempdir() do tmp
         root = abspath(string(tmp))
@@ -110,11 +109,11 @@ using Test
         write(joinpath(root, "Project.toml"), "name = \"HostApp\"\n")
         write(joinpath(kit, "Project.toml"), "name = \"SSHRunner\"\n")
         # Scripts co-located with kit `src/` (runner.jl __DIR__) should inherit the host app root.
-        @test resolve_pkg_project_dir(joinpath(kit, "src")) == root
-        @test runner_kit_project_root(joinpath(kit, "src")) == root
+        @test SSHRunner.resolve_pkg_project_dir(joinpath(kit, "src")) == root
+        @test SSHRunner.runner_kit_project_root(joinpath(kit, "src")) == root
     end
 
-    @test ssh_runner_version() >= v"0.2.1"
+    @test SSHRunner.ssh_runner_version() >= v"0.2.1"
 
     @test SSHRunner.normalize_git_clone_url("https://github.com/org/App.jl.git") ==
         "git@github.com:org/App.jl.git"
@@ -195,7 +194,7 @@ using Test
         nested = joinpath(d, "a", "b.txt")
         mkpath(dirname(nested))
         write(nested, "")
-        @test display_path(nested, d) == joinpath("a", "b.txt")
+        @test SSHRunner.display_path(nested, d) == joinpath("a", "b.txt")
     end
 
     mktempdir() do tmp
@@ -397,6 +396,19 @@ using Test
             end
         end
     end
+end
+
+@testset "(@main) subcommand dispatch" begin
+    include(joinpath(@__DIR__, "..", "src", "SSHRunner.jl"))
+    using .SSHRunner
+
+    # `julia -m SSHRunner` invokes this module's `main` (the `(@main)` entry point).
+    @test SSHRunner.main(String[]) == 1
+    @test SSHRunner.main(["bogus"]) == 1
+    @test SSHRunner.main(["runner", "--help"]) == 0
+    @test SSHRunner.main(["setup", "--help"]) == 0
+    @test SSHRunner.main(["suggest-workers", "--help"]) == 0
+    @test SSHRunner.main(["suggest_workers", "--help"]) == 0
 end
 
 @testset "host Project.toml merges kit [deps] (monorepo layout)" begin
