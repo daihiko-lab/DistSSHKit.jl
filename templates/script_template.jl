@@ -1,7 +1,7 @@
 #!/usr/bin/env julia
 # Minimal driver compatible with ParallelRunnerKit/src/runner.jl: copy beside your code and
-# replace `main()` with your workload. Requires `Distributed` and `Dates` in the
-# active project (see ParallelRunnerKit/Project.toml).
+# replace `main()` with your workload. `Distributed` and `Dates` are stdlib, so they're
+# available without adding them to your Project.toml.
 
 using Dates
 using Distributed
