@@ -12,9 +12,6 @@ Usage (via `Pkg.add`/`Pkg.develop`):
   julia --project=. -m SSHRunner setup --instantiate hosts... # Pkg.instantiate on remotes
   julia --project=. -m SSHRunner setup --cleanup hosts...  # Kill stale worker processes
 
-  # Vendored/submodule form (no install; run the script file directly)
-  julia --project=. SSHRunner/src/setup.jl --clone hosts...
-
 Optional overrides:
   --repo URL              Clone URL (default: local `origin`, HTTPS GitHub → SSH)
   --remote-path PATH      Repo root on remotes (default: ~/Parent/Name, or
@@ -426,9 +423,6 @@ Examples:
   julia --project=. -m SSHRunner setup --pull host1 host2
   julia --project=. -m SSHRunner setup --instantiate host1 host2
   julia --project=. -m SSHRunner setup --cleanup host1 host2
-
-Vendored/submodule form (no install; run the script file directly):
-  julia --project=. SSHRunner/src/setup.jl --clone host1 host2
 """)
 end
 
@@ -600,7 +594,7 @@ function instantiate_remotes(hosts::Vector{String}, julia_path::String, remote_p
     end
 end
 
-function main()
+function setup_main()
     opts = parse_args(ARGS)
     
     if opts.show_help
@@ -723,4 +717,8 @@ function main()
     println()
 end
 
-main()
+if get(ENV, "SSHRUNNER_KIT_CLI_INCLUDE", "") != "1" &&
+   !isempty(PROGRAM_FILE) &&
+   abspath(PROGRAM_FILE) == abspath(@__FILE__)
+    setup_main()
+end

@@ -8,9 +8,6 @@ baseline, then suggest worker counts from RAM and CPU constraints.
 Usage (via `Pkg.add`/`Pkg.develop`):
   julia --project=. -m SSHRunner suggest-workers [options] [--local] [hosts...]
 
-  # Vendored/submodule form (no install; run the script file directly)
-  julia --project=. SSHRunner/src/suggest_workers.jl [options] [--local] [hosts...]
-
 Options:
   -l, --local         Include localhost in suggestion (omit for remote-only)
   --gb-per-worker N   Skip measurement, assume N GB per worker
@@ -54,7 +51,14 @@ function parse_args(args::Vector{String})
         arg = String(args[i])
         if arg in ["-h", "--help"]
             println(read(@__FILE__, String))
-            exit(0)
+            return (
+                show_help=true,
+                gb_per_worker=gb_per_worker,
+                mem_headroom=mem_headroom,
+                master_gb=master_gb,
+                include_local=include_local,
+                hosts=hosts,
+            )
         elseif arg in ["--local", "-l"]
             include_local = true
         elseif arg == "--gb-per-worker"
@@ -74,8 +78,14 @@ function parse_args(args::Vector{String})
         i += 1
     end
 
-    return (gb_per_worker=gb_per_worker, mem_headroom=mem_headroom,
-            master_gb=master_gb, include_local=include_local, hosts=hosts)
+    return (
+        show_help=false,
+        gb_per_worker=gb_per_worker,
+        mem_headroom=mem_headroom,
+        master_gb=master_gb,
+        include_local=include_local,
+        hosts=hosts,
+    )
 end
 
 # ── RSS measurement via package load ─────────────────────────────────────────
@@ -155,8 +165,9 @@ end
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-function main()
+function suggest_workers_main()
     opts      = parse_args(ARGS)
+    opts.show_help && return
     hosts     = opts.hosts
     all_hosts = opts.include_local ? ["localhost"; hosts] : hosts
 
@@ -181,7 +192,7 @@ function main()
         measured = measure_rss(hosts; include_local=opts.include_local)
         if isempty(measured)
             println("Measurement failed. Use --gb-per-worker N.")
-            exit(1)
+            return
         end
         failed = [h for h in all_hosts if !haskey(measured, h)]
         if !isempty(failed)
@@ -248,4 +259,8 @@ function main()
     println("=" ^ 60)
 end
 
-main()
+if get(ENV, "SSHRUNNER_KIT_CLI_INCLUDE", "") != "1" &&
+   !isempty(PROGRAM_FILE) &&
+   abspath(PROGRAM_FILE) == abspath(@__FILE__)
+    suggest_workers_main()
+end

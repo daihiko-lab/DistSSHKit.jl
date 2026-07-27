@@ -197,9 +197,6 @@ Examples:
   # Pull any file under data/sweep that exists on hosts but not locally (recursive; sweep scripts write here):
   julia --project=. -m SSHRunner runner --collect-missing data/sweep host1 host2
 
-Vendored/submodule form (no install; run the script file directly):
-  julia --project=. SSHRunner/src/runner.jl --local 9 myscript.jl
-
 Note:
   This uses Distributed.jl (multi-process parallelism).
   Each worker is a separate Julia process with its own memory.

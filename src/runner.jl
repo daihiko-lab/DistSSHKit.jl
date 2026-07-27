@@ -18,7 +18,7 @@ Workflow:
   6. Run the target script
   7. Collect new result files from remote hosts back to local
 
-Usage (via `Pkg.add`/`Pkg.develop`; see also vendored form below):
+Usage (via `Pkg.add`/`Pkg.develop`):
   # Remote hosts only (master process on local, workers on remotes)
   julia --project=. -m SSHRunner runner host1:10 host2:10 script.jl --args
 
@@ -27,9 +27,6 @@ Usage (via `Pkg.add`/`Pkg.develop`; see also vendored form below):
 
   # Local only (9 worker processes)
   julia --project=. -m SSHRunner runner --local 9 script.jl --args
-
-  # Vendored/submodule form (no install; run the script file directly)
-  julia --project=. SSHRunner/src/runner.jl --local 9 script.jl --args
 
 Host specification:
   hostname        Use default worker count (1 or --workers N)
@@ -89,22 +86,21 @@ const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
     runner_kit_project_root(@__DIR__)
 end
 
-const _RUNNER_DIR = joinpath(@__DIR__, "runner")
-include(joinpath(_RUNNER_DIR, "args.jl"))
-include(joinpath(_RUNNER_DIR, "checks.jl"))
-include(joinpath(_RUNNER_DIR, "collect.jl"))
-include(joinpath(_RUNNER_DIR, "workers.jl"))
-include(joinpath(_RUNNER_DIR, "init.jl"))
-include(joinpath(_RUNNER_DIR, "results.jl"))
+include(joinpath(@__DIR__, "runner", "args.jl"))
+include(joinpath(@__DIR__, "runner", "checks.jl"))
+include(joinpath(@__DIR__, "runner", "collect.jl"))
+include(joinpath(@__DIR__, "runner", "workers.jl"))
+include(joinpath(@__DIR__, "runner", "init.jl"))
+include(joinpath(@__DIR__, "runner", "results.jl"))
 
 show_help() = println(runner_help_text())
 
-function runner_main()
+function runner_main()::Cint
     parsed = parse_runner_args(ARGS)
 
     if parsed.help
         show_help()
-        exit(0)
+        return 0
     end
 
     if parsed.collect_root !== nothing && parsed.collect_hosts !== nothing
@@ -113,12 +109,12 @@ function runner_main()
             parsed.collect_hosts::Vector{String};
             merge=something(parsed.collect_overwrite, false),
         )
-        exit(ok ? 0 : 1)
+        return ok ? 0 : 1
     end
 
     if parsed.script_path === nothing
         show_help()
-        exit(1)
+        return 1
     end
 
     hosts = parsed.hosts
@@ -202,7 +198,7 @@ function runner_main()
                 writeln_both("Or skip check (not recommended):")
                 print_warn("  --skip-hash-check\n")
                 writeln_both("")
-                exit(1)
+                return 1
             end
         end
     end
@@ -210,7 +206,7 @@ function runner_main()
     cleanup_stale_workers!(hosts)
 
     if local_workers > 0 || !isempty(hosts)
-        check_memory_capacity(local_workers, hosts, default_workers)
+        check_memory_capacity(local_workers, hosts, default_workers) || return 0
     end
 
     successful_hosts = add_runner_workers!(
@@ -231,6 +227,11 @@ function runner_main()
     run_driver_script!(enable_log, cleanup_workers)
 
     collect_runner_results!(successful_hosts, script_dir, sentinel_name, skip_collect, root_disp)
+    return 0
 end
 
-runner_main()
+if get(ENV, "SSHRUNNER_KIT_CLI_INCLUDE", "") != "1" &&
+   !isempty(PROGRAM_FILE) &&
+   abspath(PROGRAM_FILE) == abspath(@__FILE__)
+    exit(runner_main())
+end

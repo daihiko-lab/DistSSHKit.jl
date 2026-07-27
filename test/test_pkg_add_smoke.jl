@@ -1,6 +1,6 @@
 using Test
 
-@testset "julia -m SSHRunner runner via Pkg.develop (no vendored scripts)" begin
+@testset "Pkg.develop" begin
     kit_root = abspath(joinpath(@__DIR__, ".."))
     fixture = abspath(joinpath(@__DIR__, "fixtures", "runner_local_smoke.jl"))
     @test isfile(fixture)

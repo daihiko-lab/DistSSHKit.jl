@@ -1,8 +1,9 @@
 using Test
 
-@testset "runner args and checks" begin
-    include(joinpath(@__DIR__, "..", "src", "runner", "args.jl"))
-    include(joinpath(@__DIR__, "..", "src", "runner", "checks.jl"))
+@testset "runner args" begin
+    _runner_dir = joinpath(@__DIR__, "..", "src", "runner")
+    isdefined(Main, :parse_runner_args) || include(joinpath(_runner_dir, "args.jl"))
+    isdefined(Main, :check_memory_capacity) || include(joinpath(_runner_dir, "checks.jl"))
 
     @test_throws ArgumentError parse_runner_args(["--collect", "h"])
     @test_throws ArgumentError parse_runner_args(["--collect-sync", "data/sweep", "host"])
@@ -103,10 +104,43 @@ using Test
         @test occursin("JULIA_DISTRIBUTED_EXE", txt)
     end
 
+    function _init_git_repo!(d::String)
+        run(Cmd(["git", "-C", d, "init", "-q"]))
+        run(Cmd(["git", "-C", d, "config", "user.email", "test@example.com"]))
+        run(Cmd(["git", "-C", d, "config", "user.name", "Test"]))
+        write(joinpath(d, "f.txt"), "hi")
+        run(Cmd(["git", "-C", d, "add", "f.txt"]))
+        run(Cmd(["git", "-C", d, "commit", "-q", "-m", "init"]))
+    end
+
+    function _capture_check_git_hashes(hosts, d)
+        result = Ref{Any}(nothing)
+        out = mktemp() do _, io
+            redirect_stdout(io) do
+                result[] = check_git_hashes(hosts, d)
+            end
+            seekstart(io)
+            read(io, String)
+        end
+        ok, mismatches = result[]
+        return ok, mismatches, out
+    end
+
     mktempdir() do tmp
         d = abspath(string(tmp))
-        ok_flag, mismatches = check_git_hashes(String[], d)
-        @test ok_flag == true
+        ok, mismatches, out = _capture_check_git_hashes(String[], d)
+        @test ok == true
         @test mismatches == String[]
+        @test occursin("Could not get local git hash", out)
+    end
+
+    mktempdir() do tmp
+        d = abspath(string(tmp))
+        _init_git_repo!(d)
+        ok, mismatches, out = _capture_check_git_hashes(String[], d)
+        @test ok == true
+        @test mismatches == String[]
+        @test occursin("Local:", out)
+        @test !occursin("Could not get local git hash", out)
     end
 end

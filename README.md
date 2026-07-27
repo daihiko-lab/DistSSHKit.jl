@@ -1,21 +1,31 @@
 # SSHRunner.jl
 
 [![CI](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml)
+[![JETLS](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml)
 [![codecov](https://codecov.io/gh/daihiko-lab/SSHRunner.jl/graph/badge.svg)](https://codecov.io/gh/daihiko-lab/SSHRunner.jl)
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Run any Julia driver script across local and SSH remote worker processes (Distributed.jl, not multi-threading). Built for a handful to a dozen SSH-reachable hosts with no job scheduler in front of them, covering clone, sync, run, and result collection end to end.
+Run any Julia script across local and SSH remote worker processes (Distributed.jl, not multi-threading). Built for a handful of SSH-reachable hosts with no job scheduler in front of them, covering clone, sync, run, and result collection end to end.
 
 日本語: [README.ja.md](README.ja.md)
 
 **Status:** Pre-1.0 (`0.x`); interfaces may still change between minor versions.
 
-If you use remote hosts, read [Environment & SSH](#environment--ssh) before the workflows below. For generative-AI use in this repo, see [Development with generative AI](#development-with-generative-ai).
+If you use remote hosts, read [Using remote hosts](#using-remote-hosts) before the workflows below. For generative-AI use in this repo, see [Development with generative AI](#development-with-generative-ai).
+
+Good fit for:
+
+- Distributing code to a handful of SSH-reachable hosts with no Slurm or PBS in front of them
+- Independent jobs you want to fan out across machines: parameter sweeps, Monte Carlo runs, batches over multiple conditions
+- Making sure every host runs the exact same Julia project (same git commit)
+- Not wanting to manually gather logs and result files from each machine afterward
+
+Not a fit for large-scale HPC cluster operation, multi-threaded parallelism, or dynamic scaling. See the sections below for actual usage.
 
 ## Install and run
 
-Recommended: add the kit as a normal Julia package via `Pkg.add`, then call it via `julia -m SSHRunner` (Julia 1.12+; no Pkg Apps install needed). Run from your app root (directory with `Project.toml`).
+Recommended: add the kit as a normal Julia package via `Pkg.add`, then call it via `julia -m SSHRunner` (Julia 1.12+). Run from your app root (directory with `Project.toml`).
 
 ```bash
 cd MyProject.jl
@@ -25,6 +35,14 @@ julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/SSH
 ```
 
 See [Releases/Tags](https://github.com/daihiko-lab/SSHRunner.jl/tags) for the latest tag name.
+
+Try it locally first (no SSH needed) — this adds 2 local worker processes and runs [`demos/param_sweep.jl`](demos/param_sweep.jl):
+
+```bash
+julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
+```
+
+With remote hosts, the flow looks like this:
 
 ```bash
 # Remote setup (first time)
@@ -44,9 +62,17 @@ julia --project=. -m SSHRunner suggest-workers --local HOST1 HOST2
 
 Everything after `runner` / `setup` / `suggest-workers` becomes that command's `ARGS`. If the worker module name differs from your `Project.toml` `name`, use `--package NAME`.
 
+See each subcommand's full option list with `--help`:
+
+```bash
+julia --project=. -m SSHRunner runner --help
+julia --project=. -m SSHRunner setup --help
+julia --project=. -m SSHRunner suggest-workers --help
+```
+
 `Pkg.add(url=..., rev=...)` registers `[deps]` + `[sources]` in `Project.toml`, and records the actual commit fetched in `Manifest.toml`. These two files are the source of truth for the version (no submodule needed). To update, change `rev` and re-run `Pkg.add`.
 
-## Shared: your driver script
+## Writing the script you run
 
 The Julia script you distribute must define exactly these two functions in `Main`:
 
@@ -62,90 +88,104 @@ function main()
 end
 ```
 
-Runnable minimal example: [`templates/script_template.jl`](templates/script_template.jl).
+Runnable examples: [`demos/`](demos/) (parameter sweep, coin flips).
 
 `runner()` runs `using Distributed` before it `include`s your script, so you don't need `using Distributed` yourself just to call `pmap`, etc. (worth adding anyway if you also run or test the script standalone).
 
-## Environment & SSH
+## Using remote hosts
 
-When using remote hosts, set these up first. Check with `setup()` (or `src/setup.jl --check HOST ...`).
+Skip this section entirely if you only use `--local N`. To run across multiple remote hosts, set the following up first. Developed and tested on macOS only (other OSes are not validated). Each host needs Julia 1.12+; your local machine needs Git, OpenSSH (`ssh`), and rsync.
 
-### Tested platform
+SSHRunner connects to remotes using your normal `ssh` command. Worker startup and result collection all go through that connection. You must be able to log in **without typing a password** (set up key auth, e.g. `ssh-copy-id`). Check each host with:
 
-- Developed and tested on macOS only (other OSes are not validated)
-- Julia 1.12+ on local and every remote host
-- Local machine needs Git, OpenSSH (`ssh`), and rsync
+```bash
+ssh HOST echo ok
+```
 
-### SSH requirements
+When calling `runner`, pass hosts as `host` or `host:N` (`N` = workers on that host). Example: `runner host1:10 host2:8 script.jl`
 
-| Item | Requirement |
-|------|-------------|
-| Auth | Public-key only (no password prompts); `BatchMode=yes` non-interactive login |
-| Smoke test | `ssh HOST echo ok` on every host |
-| Host args | `host` or `host:N` (worker count) |
-| Custom options | `export DISTRIBUTED_SSH_OPTS="-o Foo=bar ..."` |
+To override SSH behavior, set `DISTRIBUTED_SSH_OPTS` (if unset, defaults apply: non-interactive login, 10s connect timeout, accept new host keys on first connect, keepalives enabled):
 
-Default SSH options when `DISTRIBUTED_SSH_OPTS` is unset: `BatchMode=yes`, `ConnectTimeout=10`, `StrictHostKeyChecking=accept-new`, keepalives.
+```bash
+export DISTRIBUTED_SSH_OPTS="-o ProxyJump=bastion ..."
+```
 
-### Remote hosts must have
+Each remote host needs Julia installed (auto-detected unless you pass `--julia PATH` or `JULIA_DISTRIBUTED_EXE`). For `setup --clone` / `--sync`, each host must reach `origin` over SSH (clone/pull). At run time, `runner` automatically checks that all hosts are on the same git commit.
 
-| Item | Requirement |
-|------|-------------|
-| Julia | Installed; auto-detected or `--julia PATH` / `JULIA_DISTRIBUTED_EXE` |
-| Git | For `--clone` / `--sync`, SSH access to `origin` from each host |
-| Repo state | Same git commit on all machines (checked by runner) |
+Path-related variables you'll likely need:
 
-### Path layout
+- **Local project root**: directory where you run `julia --project=.`; override with `DISTRIBUTED_PROJECT_ROOT`
+- **Remote repo root**: `DISTRIBUTED_REMOTE_PROJECT_ROOT` or `setup --remote-path` (default `~/parent/repo-name`)
+- **Script output**: `ENV["DISTRIBUTED_OUTPUT_DIR"]`, set in `init_output_dir!`
+- **Dirs to rsync after a run**: `DISTRIBUTED_COLLECT_DIRS` (colon-separated)
 
-| Role | Variable / option | Meaning |
-|------|-------------------|---------|
-| Local project root | `julia --project=.` dir, or `DISTRIBUTED_PROJECT_ROOT` | App `Project.toml` location |
-| Remote repo root | `DISTRIBUTED_REMOTE_PROJECT_ROOT` or `setup --remote-path` | Absolute path on SSH host; default `~/parent/repo-name` |
-| Driver output | `ENV["DISTRIBUTED_OUTPUT_DIR"]` | Set in `init_output_dir!` |
-| Post-run rsync dirs | `DISTRIBUTED_COLLECT_DIRS` | Colon-separated |
+Check everything is ready:
 
 ```bash
 cd ~/GitHub/MyProject.jl
 julia --project=. -m SSHRunner setup --check host1 host2
 ```
 
-### First-time remote setup
+First-time setup, in this order:
 
 ```bash
+# 1. git clone the repo onto each host
 julia --project=. -m SSHRunner setup --clone HOST ...
+
+# 2. Pkg.instantiate on each host to install dependencies
 julia --project=. -m SSHRunner setup --instantiate HOST ...
+
+# 3. Verify clone, dependencies, Julia availability, etc.
 julia --project=. -m SSHRunner setup --check HOST ...
+
+# 4. Align each host to your local git commit (also used before every run)
 julia --project=. -m SSHRunner setup --sync HOST ...
 ```
 
-Local workers only (`--local N`): SSH and remote paths not required.
-
 ## Troubleshooting
 
-| Problem | Try |
-|---------|-----|
-| Git hash mismatch | `julia -m SSHRunner setup --sync ...` |
-| `attempt to send to unknown socket` | `DISTRIBUTED_INIT_DELAY_SEC=10` |
-| Julia not found on remote | `--julia PATH` or `JULIA_DISTRIBUTED_EXE` |
-| Anything else | `--help` on each subcommand; [Environment & SSH](#environment--ssh) |
+- **Git hash mismatch**: `julia -m SSHRunner setup --sync ...`
+- **`attempt to send to unknown socket`**: `DISTRIBUTED_INIT_DELAY_SEC=10`
+- **Julia not found on remote**: `--julia PATH` or `JULIA_DISTRIBUTED_EXE`
+- **Anything else**: `--help` on each subcommand; [Using remote hosts](#using-remote-hosts)
 
-## For kit developers: develop via submodule
+## For kit developers: develop via `Pkg.develop`
 
-If you're editing the kit's own code while testing it (not needed for regular use):
+If you're editing the kit's own code while testing it (not needed for regular use), clone it anywhere and point `Pkg.develop` at that path:
 
 ```bash
+git clone https://github.com/daihiko-lab/SSHRunner.jl.git ~/dev/SSHRunner.jl
 cd MyProject.jl
-git submodule add https://github.com/daihiko-lab/SSHRunner.jl.git SSHRunner
-julia --project=. -e 'using Pkg; Pkg.develop(path="SSHRunner")'
+julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/SSHRunner.jl"))'
 ```
 
-Same call interface as `Pkg.add` (`julia -m SSHRunner runner ...`, etc.). Edits inside the submodule take effect immediately. The submodule's commit is the source of truth for the version.
+Same call interface as `Pkg.add` (`julia -m SSHRunner runner ...`, etc.). Edits in that checkout take effect immediately.
 
-This and `Pkg.add(url=..., rev=...)` both make you explicitly choose the version's source of truth, unlike General Registry's automatic `[compat]`-driven resolution. Registration itself is not planned right now (we'd be happy if that becomes possible someday…).
+### Local verification
+
+From the kit checkout root, maintainers typically run:
+
+```bash
+# 1. Tests (unit, runner smoke, demo scripts, log output, ...)
+julia --project=. -e 'using Pkg; Pkg.test()'
+
+# 2. Static analysis — needs `jetls` on PATH (e.g. Pkg.Apps.add + `export PATH="$HOME/.julia/bin:$PATH"` in shell rc)
+jetls check demos/*.jl test/*.jl src/**/*.jl
+
+# 3. Manual smoke (same as README quickstart)
+julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
+julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
+```
+
+`Pkg.test()` covers the demos via `test/test_demos.jl`; steps 2–3 are extra checks before pushing.
+
+CI also runs [`.github/workflows/CI.yml`](.github/workflows/CI.yml) and [`.github/workflows/jetls.yml`](.github/workflows/jetls.yml).
+
+`Pkg.add(url=..., rev=...)` and `Pkg.develop(path=...)` both make you explicitly choose the version's source of truth, unlike General Registry's automatic `[compat]`-driven resolution. That's a deliberate fit for research use (pin an exact commit, keep it reproducible), not just a missing feature — General registration may be worth revisiting once the `0.x` interface settles, mainly for discoverability.
 
 ## Development with generative AI
 
-At this stage the project is closer to vibe-coding. Most code and docs are written with LLM help (e.g. Cursor), and maintainer review/understanding has not fully caught up everywhere. For a public `0.x` GitHub repo, we operate on that premise. Correctness in practice will be validated through use in other projects and research.
+At this stage, maintainer review and understanding have not fully caught up everywhere. For a public `0.x` GitHub repo, we operate on that premise. Correctness in practice will be validated through use in other projects and research.
 
 The Julia community discusses the line between unreviewed vibe-coding and human-understood AI-assisted work (e.g. [Discourse thread](https://discourse.julialang.org/t/should-general-have-a-guideline-or-rule-preventing-registration-of-vibe-coded-packages/133205), [General policy](https://github.com/JuliaRegistries/General/blob/master/README.md)). This repository takes those discussions as reference.
 

@@ -1,6 +1,6 @@
 using Test
 
-@testset "runner.jl --local smoke" begin
+@testset "runner --local" begin
     kit_root = abspath(joinpath(@__DIR__, ".."))
     runner = joinpath(kit_root, "src", "runner.jl")
     fixture = abspath(joinpath(@__DIR__, "fixtures", "runner_local_smoke.jl"))
