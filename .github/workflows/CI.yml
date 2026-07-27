@@ -13,7 +13,7 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write # Codecov OIDC (public repos; optional if using CODECOV_TOKEN)
+  id-token: write # Codecov OIDC upload (see Upload coverage step)
 
 jobs:
   test:
@@ -43,7 +43,8 @@ jobs:
         uses: codecov/codecov-action@v6
         with:
           files: lcov.info
-          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: daihiko-lab/SSHRunner.jl
+          use_oidc: true
           fail_ci_if_error: false
       - name: Coverage summary
         if: matrix.version == '1.12'
