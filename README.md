@@ -5,7 +5,7 @@
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Run any Julia driver script across local and SSH remote worker processes (Distributed.jl, not multi-threading).
+Run any Julia driver script across local and SSH remote worker processes (Distributed.jl, not multi-threading). Built for a handful to a dozen SSH-reachable hosts with no job scheduler in front of them, covering clone, sync, run, and result collection end to end.
 
 日本語: [README.ja.md](README.ja.md)
 

@@ -5,7 +5,7 @@
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-任意の Julia ドライバスクリプトを、ローカル/SSH リモートのプロセスに分散実行する (Distributed.jl。マルチスレッドではない)。
+任意の Julia ドライバスクリプトを、ローカル/SSH リモートのプロセスに分散実行する (Distributed.jl。マルチスレッドではない)。ジョブスケジューラのない、SSH で届く数台〜十数台のホスト向け。clone・同期・実行・結果回収までを一通りカバーする。
 
 English: [README.md](README.md)
 
