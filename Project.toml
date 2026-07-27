@@ -1,7 +1,7 @@
 name = "ParallelRunnerKit"
 uuid = "73975722-9f85-4360-83b9-7c97efcd71a4"
 license = "MIT"
-version = "0.2.5"
+version = "0.3.0"
 authors = ["YAMAMOTO, Takanori <takanori.yamamoto.99@gmail.com>"]
 repo = "https://github.com/daihiko-lab/ParallelRunnerKit.jl.git"
 
