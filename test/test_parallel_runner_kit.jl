@@ -72,6 +72,48 @@ using Test
         @test resolve_pkg_project_dir(joinpath(root, "kitstub")) == root
     end
 
+    # -- resolve_pkg_project_dir: embedded app scripts, standalone kit, nested projects
+    mktempdir() do tmp
+        root = abspath(string(tmp))
+        app = joinpath(root, "MyApp")
+        kit = joinpath(app, "ParallelRunnerKit")
+        scripts = joinpath(app, "scripts", "jobs")
+        mkpath(scripts)
+        mkpath(joinpath(kit, "src"))
+        write(joinpath(app, "Project.toml"), "name = \"MyApp\"\n")
+        write(joinpath(kit, "Project.toml"), "name = \"ParallelRunnerKit\"\n")
+        @test resolve_pkg_project_dir(scripts) == app
+        @test runner_kit_project_root(joinpath(kit, "src")) == app
+        @test runner_kit_project_root(kit) == app
+    end
+    mktempdir() do tmp
+        root = abspath(string(tmp))
+        write(joinpath(root, "Project.toml"), "name = \"ParallelRunnerKit\"\n")
+        nested = joinpath(root, "templates")
+        mkpath(nested)
+        @test resolve_pkg_project_dir(nested) == root
+        @test runner_kit_project_root(joinpath(root, "src")) == root
+    end
+    mktempdir() do tmp
+        root = abspath(string(tmp))
+        subpkg = joinpath(root, "SubPkg")
+        script_dir = joinpath(subpkg, "src")
+        mkpath(script_dir)
+        write(joinpath(root, "Project.toml"), "name = \"MyApp\"\n")
+        write(joinpath(subpkg, "Project.toml"), "name = \"SubPkg\"\n")
+        @test resolve_pkg_project_dir(script_dir) == subpkg
+    end
+    mktempdir() do tmp
+        root = abspath(string(tmp))
+        kit = joinpath(root, "ParallelRunnerKit")
+        mkpath(joinpath(kit, "src"))
+        write(joinpath(root, "Project.toml"), "name = \"HostApp\"\n")
+        write(joinpath(kit, "Project.toml"), "name = \"ParallelRunnerKit\"\n")
+        # Scripts co-located with kit `src/` (runner.jl __DIR__) should inherit the host app root.
+        @test resolve_pkg_project_dir(joinpath(kit, "src")) == root
+        @test runner_kit_project_root(joinpath(kit, "src")) == root
+    end
+
     @test parallel_runner_kit_version() >= v"0.2.1"
 
     @test ParallelRunnerKit.normalize_git_clone_url("https://github.com/org/App.jl.git") ==
