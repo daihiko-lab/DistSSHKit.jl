@@ -1,6 +1,7 @@
 # ParallelRunnerKit.jl
 
 [![CI](https://github.com/daihiko-lab/ParallelRunnerKit.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/ParallelRunnerKit.jl/actions/workflows/CI.yml)
+[![codecov](https://codecov.io/gh/daihiko-lab/ParallelRunnerKit.jl/graph/badge.svg)](https://codecov.io/gh/daihiko-lab/ParallelRunnerKit.jl)
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
