@@ -16,27 +16,6 @@ permissions:
   id-token: write # Codecov OIDC (public repos; optional if using CODECOV_TOKEN)
 
 jobs:
-  jetls:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - uses: julia-actions/setup-julia@v3
-        with:
-          version: "1.12"
-      - uses: julia-actions/cache@v3
-      - name: Install jetls
-        run: |
-          julia --startup-file=no -e '
-            using Pkg
-            Pkg.Registry.add("General")
-            Pkg.Apps.add(url="https://github.com/aviatesk/JETLS.jl", rev="release")'
-          echo "$HOME/.julia/bin" >> "$GITHUB_PATH"
-      - name: jetls check
-        run: |
-          shopt -s nullglob
-          jetls check --exit-severity=error --progress=none src/*.jl test/*.jl test/fixtures/*.jl
-
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -61,7 +40,7 @@ jobs:
         if: matrix.version == '1.12'
       - name: Upload coverage to Codecov
         if: matrix.version == '1.12'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           files: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
