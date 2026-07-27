@@ -10,6 +10,7 @@ version constant, wiring (`include`) for the implementation files under `SSHRunn
 and the CLI dispatch (`(@main)`) for `julia -m SSHRunner ...`. Implementation:
 - `SSHRunner/display.jl` — path display helpers, console/log output, `TeeIO`
 - `SSHRunner/remote.jl`  — SSH/git/resource probes, remote path resolution, result collection
+- `SSHRunner/demos.jl`   — bundled demo discovery and the `demo install`/`demo list` CLI
 
 Runner-specific logic (CLI args, preflight checks, distributed orchestration) lives under
 `src/runner/` and is included into `Main` by `runner.jl`.
@@ -29,6 +30,7 @@ export display_path, distributed_collect_root_dirs, fail, get_local_git_hash, ge
 export get_remote_git_hash, get_remote_nproc, get_remote_total_gb, init_log_file
 export normalize_git_clone_url, ok, ssh_runner_version
 export print_err, print_header, print_info, print_ok, print_separator, print_warn
+export demo_script, demos_dir, install_demos, list_demos
 export project_package_name, remote_path_for_ssh_collect, resolve_pkg_project_dir
 export runner_kit_project_root
 export resolve_remote_project_root, short_path, use_colors, warn
@@ -40,6 +42,7 @@ export write_both, writeln_both
 
 include("SSHRunner/display.jl")
 include("SSHRunner/remote.jl")
+include("SSHRunner/demos.jl")
 
 # =============================================================================
 # Vendored kit version (from `SSHRunner/Project.toml`)
@@ -86,16 +89,20 @@ const _KIT_ROOT = dirname(@__DIR__)
 const _KIT_CLI_LOADED = Set{String}()
 const _KIT_CLI_SCRIPTS = ("runner.jl", "setup.jl", "suggest_workers.jl")
 
+const _KIT_CLI_MAIN = Dict(
+    "runner.jl" => :runner_main,
+    "setup.jl" => :setup_main,
+    "suggest_workers.jl" => :suggest_workers_main,
+)
+
 function _kit_cli_run_entry(script_base::String)::Cint
+    sym = get(_KIT_CLI_MAIN, script_base, nothing)
+    sym === nothing && return 0
+    fn = getfield(Main, sym)
     if script_base == "runner.jl"
-        return Base.invokelatest(Main.runner_main)
-    elseif script_base == "setup.jl"
-        Base.invokelatest(Main.setup_main)
-        return 0
-    elseif script_base == "suggest_workers.jl"
-        Base.invokelatest(Main.suggest_workers_main)
-        return 0
+        return Base.invokelatest(fn)
     end
+    Base.invokelatest(fn)
     return 0
 end
 
@@ -166,20 +173,24 @@ Subcommand dispatch for `julia -m SSHRunner SUBCOMMAND ...` (Julia 1.12+, no
 `Pkg Apps` install needed — works for any `Pkg.add`/`Pkg.develop`ed package):
 
     julia --project=. -m SSHRunner runner --local 2 script.jl
+    julia --project=. -m SSHRunner demo install
+    julia --project=. -m SSHRunner runner --local 2 demos/param_sweep.jl
     julia --project=. -m SSHRunner setup --clone host1 host2
     julia --project=. -m SSHRunner suggest-workers --local host1 host2
 """
 function (@main)(args::Vector{String}=copy(ARGS))::Cint
-    isempty(args) && (println(stderr, "Usage: julia -m SSHRunner {runner|setup|suggest-workers} [args...]"); return 1)
+    isempty(args) && (println(stderr, "Usage: julia -m SSHRunner {runner|demo|setup|suggest-workers} [args...]"); return 1)
     subcommand, rest = args[1], args[2:end]
     if subcommand == "runner"
         return runner(rest)
+    elseif subcommand == "demo"
+        return demo(rest)
     elseif subcommand == "setup"
         return setup(rest)
     elseif subcommand in ("suggest-workers", "suggest_workers")
         return suggest_workers(rest)
     else
-        println(stderr, "Unknown subcommand: $subcommand (expected runner|setup|suggest-workers)")
+        println(stderr, "Unknown subcommand: $subcommand (expected runner|demo|setup|suggest-workers)")
         return 1
     end
 end

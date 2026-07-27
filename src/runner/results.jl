@@ -1,5 +1,3 @@
-include(joinpath(@__DIR__, "_common.jl"))
-
 function place_runner_sentinels!(successful_hosts::Vector{String}, script_dir::String, skip_collect::Bool)::String
     skip_collect || isempty(successful_hosts) && return ""
     sentinel_name = ".runner_sentinel_$(getpid())_$(Dates.format(now(), "yyyymmddTHHMMSS"))"
@@ -58,8 +56,10 @@ function run_driver_script!(enable_log::Bool, cleanup_workers)
                                 end
                             end
                         end
-                        (isempty(data) && (eof(rd) || !isopen(wr))) && break
-                        isempty(data) && yield()
+                        # NOTE: no `yield()` here on an empty read — `readavailable` already
+                        # blocks until data or close, so spin-yielding instead of letting it
+                        # block starves libuv's notice of `wr` closing (observed ~30s stalls).
+                        isempty(data) && (eof(rd) || !isopen(wr)) && break
                     end
                     if !isempty(linebuf)
                         write(log_io, linebuf)
@@ -74,10 +74,15 @@ function run_driver_script!(enable_log::Bool, cleanup_workers)
             finally
                 flush(stdout)
                 close(wr)
+                # `rd` normally reaches EOF once `wr` closes, but local worker processes
+                # (spawned via `addprocs`) inherit our stdout fd and keep the underlying
+                # pipe open until they exit, so EOF may never arrive here. All real script
+                # output is already flushed to `rd` by this point (readavailable drains it
+                # as it's written), so a short grace period is enough before we force-close.
                 wait_ok = @async wait(reader)
-                for _ in 1:300
+                for _ in 1:20
                     istaskdone(wait_ok) && break
-                    sleep(0.1)
+                    sleep(0.05)
                 end
                 if !istaskdone(wait_ok)
                     close(rd)

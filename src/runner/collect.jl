@@ -1,5 +1,3 @@
-include(joinpath(@__DIR__, "_common.jl"))
-
 """
 Recursively pull files under `local_root` from each host.
 

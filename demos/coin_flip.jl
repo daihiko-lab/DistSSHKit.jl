@@ -1,10 +1,12 @@
 #!/usr/bin/env julia
-# SSHRunner driver script: each task flips a coin many times and reports the count.
-#   julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
-#   julia --project=. -m SSHRunner runner HOST1 HOST2 demos/coin_flip.jl
+# SSHRunner driver script: each worker flips a coin many times and reports
+# how many landed on heads.
+# After Pkg.add:  julia --project=. -m SSHRunner demo install
+# Then run:       julia --project=. -m SSHRunner runner --local 2 demos/coin_flip.jl
 
 using Distributed
 
+# Called before workers start. Must set ENV["DISTRIBUTED_OUTPUT_DIR"].
 function init_output_dir!(_script_args::Vector{String})
     dir = joinpath(@__DIR__, "output")
     mkpath(dir)
@@ -12,10 +14,22 @@ function init_output_dir!(_script_args::Vector{String})
     return dir
 end
 
+# Called after workers are ready.
 function main()
-    flips_per_task = 100
-    # Each of the 4 tasks flips a coin `flips_per_task` times and counts how many
-    # landed heads (`rand() < 0.5`). `pmap` sends one task to each worker.
-    heads_counts = pmap(_ -> count(<(0.5), rand(flips_per_task)), 1:4)
-    println(heads_counts)
+    # Optional args: flips_per_task (default 100), n_tasks (default 4).
+    flips_per_task = if length(ARGS) >= 1
+        parse(Int, ARGS[1])
+    else
+        100
+    end
+    n_tasks = if length(ARGS) >= 2
+        parse(Int, ARGS[2])
+    else
+        4
+    end
+
+    # pmap distributes the n_tasks coin-flipping jobs across the workers.
+    heads_counts = pmap(_ -> count(<(0.5), rand(flips_per_task)), 1:n_tasks)
+
+    println("Heads per task: ", heads_counts)
 end

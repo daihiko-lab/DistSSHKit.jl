@@ -1,10 +1,14 @@
 #!/usr/bin/env julia
-# SSHRunner driver script: sweep a parameter across workers.
-#   julia --project=. -m SSHRunner runner --local 4 demos/param_sweep.jl
-#   julia --project=. -m SSHRunner runner HOST1 HOST2 demos/param_sweep.jl
+# SSHRunner driver script: run the same computation for many parameter values,
+# spread across workers, and save all the results to one CSV file.
+# After Pkg.add:  julia --project=. -m SSHRunner demo install
+# Then run:       julia --project=. -m SSHRunner runner --local 4 demos/param_sweep.jl
+#
+# Output: demos/output/sweep_results.csv
 
 using Distributed
 
+# Called before workers start. Must set ENV["DISTRIBUTED_OUTPUT_DIR"].
 function init_output_dir!(_script_args::Vector{String})
     dir = joinpath(@__DIR__, "output")
     mkpath(dir)
@@ -12,10 +16,17 @@ function init_output_dir!(_script_args::Vector{String})
     return dir
 end
 
+# Called after workers are ready.
 function main()
-    # Sweep `param` over 1:8 and compute `param^2` for each; `pmap` distributes
-    # the 8 values across the available workers.
-    params = 1:8
+    # Optional arg: sweep size (default 8), e.g. `... param_sweep.jl 4`.
+    n = if length(ARGS) >= 1
+        parse(Int, ARGS[1])
+    else
+        8
+    end
+    params = 1:n
+
+    # pmap distributes the n param^2 computations across the workers.
     results = pmap(param -> param^2, params)
 
     out_path = joinpath(ENV["DISTRIBUTED_OUTPUT_DIR"], "sweep_results.csv")
