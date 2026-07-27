@@ -43,7 +43,7 @@ jobs:
         uses: codecov/codecov-action@v6
         with:
           files: lcov.info
-          slug: daihiko-lab/SSHRunner.jl
+          slug: daihiko-lab/DistSSHKit.jl
           use_oidc: true
           fail_ci_if_error: false
       - name: Coverage summary

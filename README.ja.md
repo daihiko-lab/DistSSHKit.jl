@@ -1,12 +1,12 @@
 # DistSSHKit.jl
 
-[![CI](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml)
-[![JETLS](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml)
-[![codecov](https://codecov.io/gh/daihiko-lab/SSHRunner.jl/graph/badge.svg)](https://codecov.io/gh/daihiko-lab/SSHRunner.jl)
+[![CI](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml)
+[![JETLS](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml)
+[![codecov](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl/graph/badge.svg)](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl)
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-任意の Julia スクリプトを、ローカル/SSH リモートのプロセスに分散実行する (Distributed.jl。マルチスレッドではない)。ジョブスケジューラのない、SSH で届く数台程度のホスト向け。clone・同期・実行・結果回収までを一通りカバーする。
+任意の Julia スクリプトを、ローカル/SSH リモートのプロセスに分散実行する (Distributed.jl, マルチスレッドではない)。ジョブスケジューラのない、SSH で届く数台程度のホスト向け。clone・同期・実行・結果回収までを一通りカバーする。
 
 English: [README.md](README.md)
 
@@ -31,10 +31,10 @@ English: [README.md](README.md)
 cd MyProject.jl
 
 # 1回だけ: バージョン固定 (rev はタグ名)
-julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/SSHRunner.jl.git", rev="vX.Y.Z")'
+julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/DistSSHKit.jl.git", rev="vX.Y.Z")'
 ```
 
-最新のタグ名は [Releases/Tags 一覧](https://github.com/daihiko-lab/SSHRunner.jl/tags) を参照。
+最新のタグ名は [Releases/Tags 一覧](https://github.com/daihiko-lab/DistSSHKit.jl/tags) を参照。
 
 まずはローカルだけで試すとよい (SSH 不要)。同梱 demo をプロジェクトにコピーしてから実行する:
 
@@ -160,10 +160,12 @@ julia --project=. -m DistSSHKit setup --sync HOST ...
 
 ## 開発者向け: `Pkg.develop` でキットを編集する
 
+PR を出す前の要点は [CONTRIBUTING.ja.md](CONTRIBUTING.ja.md) にまとめている。
+
 キットのコードそのものを編集しながら動作確認したいとき (通常の利用者は不要)。好きな場所に clone して、そのパスを `Pkg.develop` に渡す:
 
 ```bash
-git clone https://github.com/daihiko-lab/SSHRunner.jl.git ~/dev/DistSSHKit.jl
+git clone https://github.com/daihiko-lab/DistSSHKit.jl.git ~/dev/DistSSHKit.jl
 cd MyProject.jl
 julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/DistSSHKit.jl"))'
 ```

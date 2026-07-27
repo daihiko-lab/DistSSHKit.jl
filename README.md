@@ -1,8 +1,8 @@
 # DistSSHKit.jl
 
-[![CI](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/CI.yml)
-[![JETLS](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/SSHRunner.jl/actions/workflows/jetls.yml)
-[![codecov](https://codecov.io/gh/daihiko-lab/SSHRunner.jl/graph/badge.svg)](https://codecov.io/gh/daihiko-lab/SSHRunner.jl)
+[![CI](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml)
+[![JETLS](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml)
+[![codecov](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl/graph/badge.svg)](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl)
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -31,10 +31,10 @@ Recommended: add the kit as a normal Julia package via `Pkg.add`, then call it v
 cd MyProject.jl
 
 # Once: pin a version (rev is a tag name)
-julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/SSHRunner.jl.git", rev="vX.Y.Z")'
+julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/DistSSHKit.jl.git", rev="vX.Y.Z")'
 ```
 
-See [Releases/Tags](https://github.com/daihiko-lab/SSHRunner.jl/tags) for the latest tag name.
+See [Releases/Tags](https://github.com/daihiko-lab/DistSSHKit.jl/tags) for the latest tag name.
 
 Try it locally first (no SSH needed) — copy the bundled demos into your project, then run one:
 
@@ -160,10 +160,12 @@ julia --project=. -m DistSSHKit setup --sync HOST ...
 
 ## For kit developers: develop via `Pkg.develop`
 
+See [CONTRIBUTING.md](CONTRIBUTING.md) for what to check before opening a PR.
+
 If you're editing the kit's own code while testing it (not needed for regular use), clone it anywhere and point `Pkg.develop` at that path:
 
 ```bash
-git clone https://github.com/daihiko-lab/SSHRunner.jl.git ~/dev/DistSSHKit.jl
+git clone https://github.com/daihiko-lab/DistSSHKit.jl.git ~/dev/DistSSHKit.jl
 cd MyProject.jl
 julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/DistSSHKit.jl"))'
 ```

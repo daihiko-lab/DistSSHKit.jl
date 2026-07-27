@@ -1,5 +1,5 @@
 name = "DistSSHKit"
-repo = "https://github.com/daihiko-lab/SSHRunner.jl.git"
+repo = "https://github.com/daihiko-lab/DistSSHKit.jl.git"
 uuid = "73975722-9f85-4360-83b9-7c97efcd71a4"
 license = "MIT"
 version = "0.7.0"
