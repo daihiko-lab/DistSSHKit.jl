@@ -8,9 +8,6 @@ baseline, then suggest worker counts from RAM and CPU constraints.
 Usage (via `Pkg.add`/`Pkg.develop`):
   julia --project=. -m SSHRunner suggest-workers [options] [--local] [hosts...]
 
-  # Vendored/submodule form (no install; run the script file directly)
-  julia --project=. SSHRunner/src/suggest_workers.jl [options] [--local] [hosts...]
-
 Options:
   -l, --local         Include localhost in suggestion (omit for remote-only)
   --gb-per-worker N   Skip measurement, assume N GB per worker

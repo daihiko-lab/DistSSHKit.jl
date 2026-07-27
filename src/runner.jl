@@ -18,7 +18,7 @@ Workflow:
   6. Run the target script
   7. Collect new result files from remote hosts back to local
 
-Usage (via `Pkg.add`/`Pkg.develop`; see also vendored form below):
+Usage (via `Pkg.add`/`Pkg.develop`):
   # Remote hosts only (master process on local, workers on remotes)
   julia --project=. -m SSHRunner runner host1:10 host2:10 script.jl --args
 
@@ -27,9 +27,6 @@ Usage (via `Pkg.add`/`Pkg.develop`; see also vendored form below):
 
   # Local only (9 worker processes)
   julia --project=. -m SSHRunner runner --local 9 script.jl --args
-
-  # Vendored/submodule form (no install; run the script file directly)
-  julia --project=. SSHRunner/src/runner.jl --local 9 script.jl --args
 
 Host specification:
   hostname        Use default worker count (1 or --workers N)

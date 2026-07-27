@@ -1,8 +1,8 @@
 # Julia / Pkg
 Manifest.toml
 
-# Local runs (src/runner.jl, templates)
-templates/results/
+# Local runs (src/runner.jl, demo.jl)
+data/
 runner_*.log
 
 # Tests & CI artifacts
