@@ -81,7 +81,7 @@ dist_ssh_kit_version()::VersionNumber = DIST_SSH_KIT_VERSION
 # `setup.jl`, …) unchanged rather than duplicating logic here.
 #
 # Primary workflow (no submodule/Pkg Apps needed):
-#   julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/SSHRunner.jl.git", rev="vX.Y.Z")'
+#   julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/DistSSHKit.jl.git", rev="vX.Y.Z")'
 #   julia --project=. -m DistSSHKit runner --local 2 script.jl
 
 const _KIT_ROOT = dirname(@__DIR__)
