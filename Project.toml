@@ -1,7 +1,7 @@
 name = "ParallelRunnerKit"
 uuid = "73975722-9f85-4360-83b9-7c97efcd71a4"
 license = "MIT"
-version = "0.2.4"
+version = "0.2.5"
 authors = ["YAMAMOTO, Takanori <takanori.yamamoto.99@gmail.com>"]
 repo = "https://github.com/daihiko-lab/ParallelRunnerKit.jl.git"
 
@@ -21,13 +21,13 @@ Pkg = "1.11"
 julia = "1.12"
 
 [apps.prunner]
-submodule = "Runner"
+submodule = "AppRunner"
 
 [apps.psetup]
-submodule = "Setup"
+submodule = "AppSetup"
 
 [apps.psuggest]
-submodule = "Suggest"
+submodule = "AppSuggest"
 
 [extras]
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"

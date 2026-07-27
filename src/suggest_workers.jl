@@ -6,8 +6,8 @@ Load the project package on each host and measure RSS as a per-worker
 baseline, then suggest worker counts from RAM and CPU constraints.
 
 Usage:
-  julia --project=. suggest_workers.jl [options] [--local] [hosts...]
-  # When embedded under a host app: ParallelRunnerKit/suggest_workers.jl
+  julia --project=. src/suggest_workers.jl [options] [--local] [hosts...]
+  # When embedded under a host app: ParallelRunnerKit/src/suggest_workers.jl
 
 Options:
   -l, --local         Include localhost in suggestion (omit for remote-only)
@@ -17,17 +17,15 @@ Options:
   -h, --help
 
 Examples:
-  julia --project=. ParallelRunnerKit/suggest_workers.jl --local host1 host2
-  julia --project=. ParallelRunnerKit/suggest_workers.jl --gb-per-worker 1.5 host1
+  julia --project=. ParallelRunnerKit/src/suggest_workers.jl --local host1 host2
+  julia --project=. ParallelRunnerKit/src/suggest_workers.jl --gb-per-worker 1.5 host1
 """
 
-const RUNNER_KIT_DIR = @__DIR__
-
-include(joinpath(RUNNER_KIT_DIR, "src", "ParallelRunnerKit.jl"))
+include(joinpath(@__DIR__, "ParallelRunnerKit.jl"))
 using .ParallelRunnerKit
 
 const PROJECT_ROOT = get(ENV, "DISTRIBUTED_PROJECT_ROOT") do
-    runner_kit_project_root(RUNNER_KIT_DIR)
+    runner_kit_project_root(@__DIR__)
 end
 
 using Distributed
@@ -239,9 +237,9 @@ function main()
     println("Command template:")
     worker_args = "$(local_arg)$(remote_arg)"
     if isempty(worker_args)
-        println("  julia --project=. ParallelRunnerKit/runner.jl <script.jl> <args>")
+        println("  julia --project=. ParallelRunnerKit/src/runner.jl <script.jl> <args>")
     else
-        println("  julia --project=. ParallelRunnerKit/runner.jl \\")
+        println("  julia --project=. ParallelRunnerKit/src/runner.jl \\")
         println("    $(rstrip(worker_args)) \\")
         println("    <script.jl> <args>")
     end

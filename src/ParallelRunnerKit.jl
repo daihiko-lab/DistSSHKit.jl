@@ -105,6 +105,7 @@ Default local project root for `runner.jl` / `setup.jl` / `suggest_workers.jl`.
 """
 function runner_kit_project_root(kit_dir::AbstractString)::String
     root = String(abspath(expanduser(String(kit_dir))))
+    basename(root) == "src" && (root = dirname(root))
     isfile(joinpath(root, "Project.toml")) || return dirname(root)
     parent = dirname(root)
     stub = project_package_name(root)
@@ -896,11 +897,11 @@ end
 function runner_help_text()::String
     """
 Usage:
-  julia --project=. ParallelRunnerKit/runner.jl [options] [hosts...] script.jl [script_args...]
+  julia --project=. ParallelRunnerKit/src/runner.jl [options] [hosts...] script.jl [script_args...]
 
 Collect-only (no script):
-  julia --project=. ParallelRunnerKit/runner.jl --collect-missing ROOT HOST [HOST...]
-  julia --project=. ParallelRunnerKit/runner.jl --collect-overwrite ROOT HOST [HOST...]
+  julia --project=. ParallelRunnerKit/src/runner.jl --collect-missing ROOT HOST [HOST...]
+  julia --project=. ParallelRunnerKit/src/runner.jl --collect-overwrite ROOT HOST [HOST...]
   (aliases: --collect-tree == --collect-missing; --collect-tree-sync == --collect-overwrite)
 
 Options:
@@ -929,19 +930,19 @@ Worker counts:
 
 Examples:
   # Local + remote (9 local + 10 + 8 remote = 27 worker processes)
-  julia --project=. ParallelRunnerKit/runner.jl --local 9 host1:10 host2:8 myscript.jl
+  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 host1:10 host2:8 myscript.jl
 
   # Default workers for all remote hosts
-  julia --project=. ParallelRunnerKit/runner.jl --local 9 --workers 10 host1 host2 myscript.jl
+  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 --workers 10 host1 host2 myscript.jl
 
   # Local only (9 worker processes)
-  julia --project=. ParallelRunnerKit/runner.jl --local 9 myscript.jl
+  julia --project=. ParallelRunnerKit/src/runner.jl --local 9 myscript.jl
 
   # Remote only (master on local, workers on remotes)
-  julia --project=. ParallelRunnerKit/runner.jl host1:10 myscript.jl
+  julia --project=. ParallelRunnerKit/src/runner.jl host1:10 myscript.jl
 
   # Pull any file under data/sweep that exists on hosts but not locally (recursive; sweep scripts write here):
-  julia --project=. ParallelRunnerKit/runner.jl --collect-missing data/sweep host1 host2
+  julia --project=. ParallelRunnerKit/src/runner.jl --collect-missing data/sweep host1 host2
 
 Note:
   This uses Distributed.jl (multi-process parallelism).
@@ -967,7 +968,7 @@ end
 # =============================================================================
 # `Pkg.Apps` is itself an experimental Pkg.jl feature; this wiring may need to
 # change once it stabilizes. Kept intentionally thin: each app delegates to the
-# vendored top-level `*.jl` CLI unchanged rather than duplicating logic here.
+# vendored CLI scripts in `src/` (`runner.jl`, `setup.jl`, …) unchanged rather than duplicating logic here.
 #
 # Try it locally:
 #   julia -e 'using Pkg; Pkg.Apps.develop(path="/path/to/ParallelRunnerKit.jl")'
@@ -977,20 +978,24 @@ end
 
 const _KIT_ROOT = dirname(@__DIR__)
 
-"""Run a vendored kit CLI script (`runner.jl`, `setup.jl`, …) with `ARGS` set."""
+"""Run a kit CLI script in `src/` (`runner.jl`, `setup.jl`, …) with `ARGS` set."""
 function _run_kit_cli_script(script_name::AbstractString, args::Vector{String})::Cint
     haskey(ENV, "DISTRIBUTED_PROJECT_ROOT") || (ENV["DISTRIBUTED_PROJECT_ROOT"] = pwd())
     # `args` may alias `ARGS` (the app launcher can pass `ARGS` directly).
     args_snapshot = collect(String, args)
     empty!(ARGS)
     append!(ARGS, args_snapshot)
-    script_path = isabspath(script_name) ? String(script_name) : joinpath(_KIT_ROOT, String(script_name))
+    script_path = if isabspath(script_name)
+        String(script_name)
+    else
+        joinpath(@__DIR__, String(script_name))
+    end
     include(script_path)
     return 0
 end
 
-include("Runner.jl")
-include("Setup.jl")
-include("Suggest.jl")
+include("AppRunner.jl")
+include("AppSetup.jl")
+include("AppSuggest.jl")
 
 end # module ParallelRunnerKit
