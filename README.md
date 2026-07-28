@@ -183,23 +183,13 @@ Same call interface as `Pkg.add` (`julia -m DistSSHKit runner ...`, etc.). Edits
 
 ### Local verification
 
-From the kit checkout root, maintainers typically run:
+At minimum, run the test suite from the kit checkout root:
 
 ```bash
-# 1. Tests (unit, runner smoke, demo scripts, log output, ...)
 julia --project=. -e 'using Pkg; Pkg.test()'
-
-# 2. Static analysis — needs `jetls` on PATH (e.g. Pkg.Apps.add + `export PATH="$HOME/.julia/bin:$PATH"` in shell rc)
-jetls check demos/*.jl src/DistSSHKit.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
-
-# 3. Manual smoke (same as README quickstart)
-julia --project=. -m DistSSHKit runner --local 2 demos/param_sweep.jl
-julia --project=. -m DistSSHKit runner --local 2 demos/coin_flip.jl
 ```
 
-`Pkg.test()` covers both the demo scripts (`test/test_demos.jl`) and `demo install`/`demo list` (`test/test_demo_cli.jl`) automatically; steps 2–3 are extra checks before pushing.
-
-CI also runs [`.github/workflows/CI.yml`](.github/workflows/CI.yml) and [`.github/workflows/jetls.yml`](.github/workflows/jetls.yml).
+See [CONTRIBUTING.md](CONTRIBUTING.md#before-opening-a-pr) for the full checklist (static analysis, manual smoke tests, remote-host verification) to run before opening a PR.
 
 `Pkg.add(url=..., rev=...)` and `Pkg.develop(path=...)` both make you explicitly choose the version's source of truth, unlike General Registry's automatic `[compat]`-driven resolution. That's a deliberate fit for research use (pin an exact commit, keep it reproducible).
 
