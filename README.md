@@ -11,7 +11,8 @@ Run any Julia script across local and SSH remote worker processes (Distributed.j
 
 日本語: [README.ja.md](README.ja.md)
 
-**Status:** Pre-1.0 (`0.x`); pin the latest tag from [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) as `rev`. Git/Julia checks and the iterate-vs-production workflow are in place. Interfaces may still change between minor versions.
+> [!NOTE]
+> **Under active development:** Interfaces may still change. For new use, pin the latest tag from [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) as `rev`.
 
 If you use remote hosts, read [Using remote hosts](#using-remote-hosts) before the workflows below. For generative-AI use in this repo, see [Development with generative AI](#development-with-generative-ai).
 
