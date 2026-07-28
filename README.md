@@ -3,6 +3,7 @@
 [![CI](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml)
 [![JETLS](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml)
 [![codecov](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl/graph/badge.svg?token=XWKRUL2DS1)](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl)
+[![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -11,7 +12,7 @@ Run any Julia script across local and SSH remote worker processes (Distributed.j
 
 日本語: [README.ja.md](README.ja.md)
 
-> [!NOTE]
+> [!IMPORTANT]
 > **Under active development:** Interfaces may still change. For new use, pin the latest tag from [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) as `rev`. For now, the latest tag itself is moved forward to the newest commit; if you need exact reproducibility, pin a commit hash instead of the tag name.
 
 If you use remote hosts, read [Using remote hosts](#using-remote-hosts) before the workflows below. For generative-AI use in this repo, see [Development with generative AI](#development-with-generative-ai).
