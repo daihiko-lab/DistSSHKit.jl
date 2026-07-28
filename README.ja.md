@@ -12,7 +12,7 @@
 English: [README.md](README.md)
 
 > [!NOTE]
-> **開発中:** インターフェースはまだ変わる可能性がある。新規利用は [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) の最新タグを `rev` に指定する。
+> **開発中:** インターフェースはまだ変わる可能性がある。新規利用は [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) の最新タグを `rev` に指定する。当面は最新タグ自体を最新コミットへ更新していく運用のため、厳密な再現性が必要な場合は `rev` にタグ名ではなくコミットハッシュを指定すること。
 
 リモートホストを使う場合は、手順の前に [リモートホストを使う](#リモートホストを使う) を読むこと。生成AIの利用については [生成AIを用いた開発](#生成aiを用いた開発) を参照。
 
@@ -168,35 +168,13 @@ julia --project=. -m DistSSHKit setup --sync HOST ...
 - **リモートで Julia 未検出**: `--julia PATH` または `JULIA_DISTRIBUTED_EXE`
 - **それ以外**: 各サブコマンドの `--help`、[リモートホストを使う](#リモートホストを使う)
 
-## 開発者向け: `Pkg.develop` でキットを編集する
+## 開発者向け
 
-PR を出す前の要点は [CONTRIBUTING.ja.md](CONTRIBUTING.ja.md) にまとめている。
-
-キットのコードそのものを編集しながら動作確認したいとき (通常の利用者は不要)。好きな場所に clone して、そのパスを `Pkg.develop` に渡す:
-
-```bash
-git clone https://github.com/daihiko-lab/DistSSHKit.jl.git ~/dev/DistSSHKit.jl
-cd MyProject.jl
-julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/DistSSHKit.jl"))'
-```
-
-呼び出し方は `Pkg.add` の場合と同じ (`julia -m DistSSHKit runner ...` など)。この clone 先のファイルを直接編集すればすぐ反映される。
-
-### ローカルでの検証
-
-最低限、キットの clone ルートでテストスイートを実行する:
-
-```bash
-julia --project=. -e 'using Pkg; Pkg.test()'
-```
-
-PR を出す前に確認すべき全チェック項目 (静的解析、手動スモーク、リモートホストでの検証など) は [CONTRIBUTING.ja.md](CONTRIBUTING.ja.md#pr-を出す前に) を参照。
-
-`Pkg.add(url=..., rev=...)` と `Pkg.develop(path=...)` は、どちらも使うバージョンを自分ではっきり決める設計。Julia General Registry のように `[compat]` で自動的に新しいバージョンへ上がっていく仕組みは想定していない。研究用途では特定のコミットに固定して再現性を保ちたいことが多いため。
+キットのコードそのものを編集しながら動作確認したい場合や、PR を出す前の準備・チェック項目は [CONTRIBUTING.ja.md](CONTRIBUTING.ja.md) にまとめている。
 
 ## 生成AIを用いた開発
 
-現段階は、メンテナの理解・レビューは追いついていない部分がある。`0.x` の GitHub 公開リポジトリとしてはその前提で動いている。機能面の正しさは、他プロジェクトや研究での実利用を通じて検証していく。
+開発初期段階につき、メンテナの理解・レビューがまだ追いついていない部分がある。機能面の正しさは、他プロジェクトや研究での実利用を通じて検証していく。
 
 Julia コミュニティでは [LLM 利用の議論](https://discourse.julialang.org/t/should-general-have-a-guideline-or-rule-preventing-registration-of-vibe-coded-packages/133205) や [General の方針](https://github.com/JuliaRegistries/General/blob/master/README.md) で、レビューなしの vibe-coding と人間が理解した AI-assisted の区別が話されている。本リポジトリもその議論を参考にしている。
 
