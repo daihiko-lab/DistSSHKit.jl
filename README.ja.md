@@ -6,11 +6,11 @@
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-任意の Julia スクリプトを、ローカル/SSH リモートのプロセスに分散実行する (Distributed.jl, マルチスレッドではない)。ジョブスケジューラのない、SSH で届く数台程度のホスト向け。clone・同期・実行・結果回収までを一通りカバーする。
+任意の Julia スクリプトを、ローカル/SSH リモートのプロセスに分散実行する (Distributed.jl, マルチスレッドではない)。ジョブスケジューラのない、SSH で届く数台程度のホスト向け。clone・同期・実行・結果回収までを一通りカバーする。現状、macOSのみ。
 
 English: [README.md](README.md)
 
-**状態:** `0.x` (1.0 未満)。マイナー版の間でもインターフェースが変わる可能性がある。
+**状態:** `0.x` (1.0 未満)。新規利用は `rev="v0.7.2"` 以降を推奨。git/Julia チェックと試行錯誤 vs 本番の運用方針は `v0.7.2` で一通り揃った。インターフェースはまだ変わる可能性がある。
 
 リモートホストを使う場合は、手順の前に [リモートホストを使う](#リモートホストを使う) を読むこと。生成AIの利用については [生成AIを用いた開発](#生成aiを用いた開発) を参照。
 

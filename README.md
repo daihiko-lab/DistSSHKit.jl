@@ -6,11 +6,11 @@
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Run any Julia script across local and SSH remote worker processes (Distributed.jl, not multi-threading). Built for a handful of SSH-reachable hosts with no job scheduler in front of them, covering clone, sync, run, and result collection end to end.
+Run any Julia script across local and SSH remote worker processes (Distributed.jl, not multi-threading). Built for a handful of SSH-reachable hosts with no job scheduler in front of them, covering clone, sync, run, and result collection end to end. Currently macOS only.
 
 日本語: [README.ja.md](README.ja.md)
 
-**Status:** Pre-1.0 (`0.x`); interfaces may still change between minor versions.
+**Status:** Pre-1.0 (`0.x`); use `rev="v0.7.2"` or later for new projects. Git/Julia checks and the iterate-vs-production workflow landed in `v0.7.2`. Interfaces may still change between minor versions.
 
 If you use remote hosts, read [Using remote hosts](#using-remote-hosts) before the workflows below. For generative-AI use in this repo, see [Development with generative AI](#development-with-generative-ai).
 
