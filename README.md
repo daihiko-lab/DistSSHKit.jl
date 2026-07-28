@@ -2,7 +2,8 @@
 
 [![CI](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml)
 [![JETLS](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml)
-[![codecov](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl/graph/badge.svg)](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl)
+[![codecov](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl/graph/badge.svg?token=XWKRUL2DS1)](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl)
+
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
