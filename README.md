@@ -10,7 +10,7 @@ Run any Julia script across local and SSH remote worker processes (Distributed.j
 
 日本語: [README.ja.md](README.ja.md)
 
-**Status:** Pre-1.0 (`0.x`); pin the latest tag from [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) as `rev`. Git/Julia checks and the iterate-vs-production workflow are in place. Trial use in real projects is underway. Interfaces may still change between minor versions.
+**Status:** Pre-1.0 (`0.x`); pin the latest tag from [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) as `rev`. Git/Julia checks and the iterate-vs-production workflow are in place. Interfaces may still change between minor versions.
 
 If you use remote hosts, read [Using remote hosts](#using-remote-hosts) before the workflows below. For generative-AI use in this repo, see [Development with generative AI](#development-with-generative-ai).
 
@@ -34,9 +34,7 @@ cd MyProject.jl
 julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/DistSSHKit.jl.git", rev="vX.Y.Z")'
 ```
 
-See [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) for the tag to pin (`rev` is `v` + the `version` in `Project.toml` at that tag). This README is the latest on `main` and may be newer than the snapshot at a pinned tag.
-
-Git tags from the old package names (`ParallelRunnerKit` → `SSHRunner` → `DistSSHKit`) were removed during cleanup. Available tags and release notes live on Releases.
+See [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) for the tag to pin.
 
 Try it locally first (no SSH needed) — copy the bundled demos into your project, then run one:
 
@@ -202,9 +200,7 @@ julia --project=. -m DistSSHKit runner --local 2 demos/coin_flip.jl
 
 CI also runs [`.github/workflows/CI.yml`](.github/workflows/CI.yml) and [`.github/workflows/jetls.yml`](.github/workflows/jetls.yml).
 
-`Pkg.add(url=..., rev=...)` and `Pkg.develop(path=...)` both make you explicitly choose the version's source of truth, unlike General Registry's automatic `[compat]`-driven resolution — **for now**. That's a deliberate fit for research use (pin an exact commit, keep it reproducible).
-
-Once trial use in real projects settles the interface, we plan to redesign tests and register in General (TagBot + JuliaRegistrator). After registration, pinning with `rev` remains supported.
+`Pkg.add(url=..., rev=...)` and `Pkg.develop(path=...)` both make you explicitly choose the version's source of truth, unlike General Registry's automatic `[compat]`-driven resolution. That's a deliberate fit for research use (pin an exact commit, keep it reproducible).
 
 ## Development with generative AI
 

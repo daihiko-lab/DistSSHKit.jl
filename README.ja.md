@@ -10,7 +10,7 @@
 
 English: [README.md](README.md)
 
-**状態:** `0.x` (1.0 未満)。新規利用は [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) の最新タグを `rev` に指定する。git/Julia チェックと試行錯誤 vs 本番の運用方針は揃っている。実プロジェクトでの試験運用フェーズ。インターフェースはまだ変わる可能性がある。
+**状態:** `0.x` (1.0 未満)。新規利用は [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) の最新タグを `rev` に指定する。git/Julia チェックと試行錯誤 vs 本番の運用方針は揃っている。インターフェースはまだ変わる可能性がある。
 
 リモートホストを使う場合は、手順の前に [リモートホストを使う](#リモートホストを使う) を読むこと。生成AIの利用については [生成AIを用いた開発](#生成aiを用いた開発) を参照。
 
@@ -34,9 +34,7 @@ cd MyProject.jl
 julia --project=. -e 'using Pkg; Pkg.add(url="https://github.com/daihiko-lab/DistSSHKit.jl.git", rev="vX.Y.Z")'
 ```
 
-推奨タグ名は [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) を参照 (`rev` は `v` + `Project.toml` の `version`)。README は `main` 上の最新版であり、pin したタグのスナップショットより新しいことがある。
-
-旧パッケージ名 (`ParallelRunnerKit` → `SSHRunner` → `DistSSHKit`) 時代の git タグは整理済み。利用可能なタグと変更内容は Releases に記載する。
+推奨タグ名は [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) を参照。
 
 まずはローカルだけで試すとよい (SSH 不要)。同梱 demo をプロジェクトにコピーしてから実行する:
 
@@ -202,9 +200,7 @@ julia --project=. -m DistSSHKit runner --local 2 demos/coin_flip.jl
 
 CI では [`CI.yml`](.github/workflows/CI.yml) と [`jetls.yml`](.github/workflows/jetls.yml) も走らせている。
 
-`Pkg.add(url=..., rev=...)` と `Pkg.develop(path=...)` は、どちらも使うバージョンを自分ではっきり決める設計。Julia General Registry のように `[compat]` で自動的に新しいバージョンへ上がっていく仕組みは、**今は**想定していない。研究用途では特定のコミットに固定して再現性を保ちたいことが多いため。
-
-試験運用でインターフェースが落ち着いたら、テストを再設計したうえで General Registry 登録 (TagBot + JuliaRegistrator) を予定している。登録後も `rev` 固定での利用は引き続き可能。
+`Pkg.add(url=..., rev=...)` と `Pkg.develop(path=...)` は、どちらも使うバージョンを自分ではっきり決める設計。Julia General Registry のように `[compat]` で自動的に新しいバージョンへ上がっていく仕組みは想定していない。研究用途では特定のコミットに固定して再現性を保ちたいことが多いため。
 
 ## 生成AIを用いた開発
 
