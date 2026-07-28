@@ -3,6 +3,7 @@
 [![CI](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/CI.yml)
 [![JETLS](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml/badge.svg)](https://github.com/daihiko-lab/DistSSHKit.jl/actions/workflows/jetls.yml)
 [![codecov](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl/graph/badge.svg?token=XWKRUL2DS1)](https://codecov.io/gh/daihiko-lab/DistSSHKit.jl)
+[![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 
 [![Julia 1.12+](https://img.shields.io/badge/Julia-1.12+-blue.svg)](https://julialang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -11,7 +12,7 @@
 
 English: [README.md](README.md)
 
-> [!NOTE]
+> [!IMPORTANT]
 > **開発中:** インターフェースはまだ変わる可能性がある。新規利用は [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) の最新タグを `rev` に指定する。当面は最新タグ自体を最新コミットへ更新していく運用のため、厳密な再現性が必要な場合は `rev` にタグ名ではなくコミットハッシュを指定すること。
 
 リモートホストを使う場合は、手順の前に [リモートホストを使う](#リモートホストを使う) を読むこと。生成AIの利用については [生成AIを用いた開発](#生成aiを用いた開発) を参照。

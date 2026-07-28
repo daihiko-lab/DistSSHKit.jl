@@ -15,6 +15,13 @@ using .DistSSHKit
 
 include(joinpath(@__DIR__, "test_runner_log_common.jl"))
 
+# Runs first, and separately from `_TEST_FILES`: unlike the other test files
+# (which reuse the `Main.DistSSHKit` module loaded above via relative
+# `include`), `test_aqua.jl` needs `using DistSSHKit` to resolve to a real,
+# top-level package module (see comment in that file).
+println("▸ test_aqua.jl")
+include(joinpath(@__DIR__, "test_aqua.jl"))
+
 const _TEST_FILES = (
     "test_path_helpers.jl",
     "test_main_dispatch.jl",

@@ -188,6 +188,13 @@ function Base.write(io::TeeIO, b::StridedVector{UInt8})
     return _teeio_write_bytes(io, b)
 end
 
+# Also ambiguous with Base's `write(::IO, ::Base.CodeUnits)` (e.g. `write(io, codeunits(str))`);
+# this narrower method disambiguates. `where S` (rather than the bare UnionAll
+# `Base.CodeUnits{UInt8}`) keeps `b`'s type concrete for the compiler/linter.
+function Base.write(io::TeeIO, b::Base.CodeUnits{UInt8,S}) where {S<:AbstractString}
+    return _teeio_write_bytes(io, b)
+end
+
 function _teeio_write_bytes(io::TeeIO, b::AbstractVector{UInt8})
     write(io.primary, b)
     sec = io.secondary
