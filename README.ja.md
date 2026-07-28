@@ -97,7 +97,7 @@ function main()
 end
 ```
 
-動く最小例: [`demos/`](demos/) (パラメータスイープ、コイン投げ)。
+動く最小例: [`demos/`](demos/) (パラメータスイープ、コイン投げ)。自分のプロジェクトにコピーして読み書きしたい場合は `demo install` を使う ([インストールと実行](#インストールと実行) 参照)。
 
 `runner()` は先に `using Distributed` してからこのスクリプトを `include` するので、`pmap` 等を使うだけなら自分で `using Distributed` を書かなくてもよい (単体で実行・テストする場合は書いておくと安全)。
 
@@ -119,7 +119,7 @@ SSH のオプションを変えたいときだけ `DISTRIBUTED_SSH_OPTS` を使�
 export DISTRIBUTED_SSH_OPTS="-o ProxyJump=bastion ..."
 ```
 
-リモート側には Julia が必要 (未指定なら自動検出。`--julia PATH` または `JULIA_DISTRIBUTED_EXE` でも指定できる)。`setup --clone` / `--sync` を使うなら、各ホストから `origin` へ SSH で clone/pull できること。実行時は全ホストで同じ git コミットになっているかを runner が自動で確認する。
+リモート側には Julia が必要 (未指定なら自動検出。`--julia PATH` または `JULIA_DISTRIBUTED_EXE` でも指定できる)。`setup --clone` / `--sync` を使うなら、各ホストから `origin` へ SSH で clone/pull できること。実行時は全ホストで同じ git コミットになっているかを runner が自動で確認し、ローカルの作業ツリーに未コミットの変更があれば警告する (両方とも `--skip-hash-check` でスキップ可能)。また `setup --check` は各ホストの Julia バージョンがローカルと一致しているかも確認する (メジャー.マイナーの不一致は失敗扱い。`--ignore-julia-version` を渡すと警告に格下げできる。パッチのみの差異は常に警告のみ)。
 
 パスまわりでよく使う変数:
 
@@ -150,6 +150,14 @@ julia --project=. -m DistSSHKit setup --check HOST ...
 # 4. 手元の git コミットに各ホストを揃える (以降、実行のたびにも使う)
 julia --project=. -m DistSSHKit setup --sync HOST ...
 ```
+
+コミットする前に手早く試したいときは、`setup --rsync HOST ...` で git を経由せず rsync だけでツリーをコピーできる。ただし commit も hash 検証も一切行わないため、`--skip-hash-check` なしでは `runner` の git チェックが警告/失敗する可能性が高い。git コミットでの再現性保証がほしい場合は `--sync` を使うこと。
+
+### 推奨ワークフロー: 試行錯誤 vs 本番実行
+
+- **試行錯誤中** (スクリプトをまだ書き換えている段階): `setup --rsync` + `runner --skip-hash-check` でよい。git の一致は気にせず、フィードバックループの速さを優先する
+- **本番実行の前**: コミットしてから `setup --sync HOST ...` を実行し、続けて `setup --check HOST ...` を警告なしで通す。残しておきたい結果を `--skip-hash-check` 付きで実行しない。`setup --check` はメジャー.マイナーの不一致のみ失敗扱いで、パッチのみの差異 (例: 1.12.6 vs 1.12.9) は警告止まりのため、公開・保存する結果を出す前は各ホストを同じパッチに揃えてから (例: `juliaup default 1.12.6`)、警告なしで通ることを確認する
+- **結果の記録**: `runner` のログ (`results/runner_*.log`) を出力と一緒に保管する。ログ先頭には実行時のサブコマンド引数と、判明する範囲での Julia 実行環境がすでに記録されている
 
 ## トラブルシューティング
 

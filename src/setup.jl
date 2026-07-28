@@ -83,13 +83,31 @@ function check_ssh(host::String)
     end
 end
 
-function check_julia(host::String, julia_path::String)
-    try
-        result = read(Cmd(["ssh", SSH_OPTS..., host, julia_path, "--version"]), String)
-        return contains(result, "julia version")
-    catch
-        return false
+"""Compare two Julia versions and classify the difference:
+`:none` (equal, or nothing to compare), `:minor` (major.minor differs — the
+concerning case), or `:patch` (patch-only difference — usually fine)."""
+function julia_version_mismatch_kind(local_version::VersionNumber, remote_version::VersionNumber)::Symbol
+    if remote_version.major != local_version.major || remote_version.minor != local_version.minor
+        return :minor
+    elseif remote_version.patch != local_version.patch
+        return :patch
     end
+    return :none
+end
+
+"""Check Julia on a remote host: is it present, and does its version match closely enough?
+
+Returns a NamedTuple `(found, version, mismatch_kind)`:
+- `found`: whether `julia_path --version` produced parseable output
+- `version`: the remote `VersionNumber`, or `nothing` if unparseable
+- `mismatch_kind`: see `julia_version_mismatch_kind` (`:none` when `version` is `nothing`)
+"""
+function check_julia(host::String, julia_path::String)
+    remote_version = get_remote_julia_version(host, julia_path)
+    if remote_version === nothing
+        return (found=false, version=nothing, mismatch_kind=:none)
+    end
+    return (found=true, version=remote_version, mismatch_kind=julia_version_mismatch_kind(VERSION, remote_version))
 end
 
 function check_project(host::String, remote_path::String)
@@ -101,14 +119,7 @@ function check_project(host::String, remote_path::String)
     end
 end
 
-function check_git_clean()
-    try
-        result = read(`git -C $PROJECT_ROOT status --porcelain`, String)
-        return isempty(strip(result))
-    catch
-        return false
-    end
-end
+check_git_clean() = local_git_clean(PROJECT_ROOT)
 
 function git_push()
     try
@@ -144,6 +155,7 @@ function check_prerequisites(
     remote_path::String;
     require_clean_git::Bool=false,
     check_code_sync::Bool=true,
+    ignore_julia_version::Bool=false,
 )
     println("Checking prerequisites...")
     println()
@@ -204,12 +216,23 @@ function check_prerequisites(
             host_julia = detect_julia_path(host)
         end
         
-        if host_julia !== nothing && check_julia(host, String(host_julia))
-            ok("Julia found at $host_julia")
-        else
+        julia_check = host_julia === nothing ?
+            (found=false, version=nothing, mismatch_kind=:none) :
+            check_julia(host, String(host_julia))
+        if !julia_check.found
             fail("Julia not found (checked: $(host_julia === nothing ? "auto-detect" : host_julia))")
             println("    Fix: Install Julia or use --julia PATH or set JULIA_DISTRIBUTED_EXE")
             all_ok = false
+        elseif julia_check.mismatch_kind == :minor && !ignore_julia_version
+            fail("Julia version mismatch: local $(VERSION), $host has $(julia_check.version) (at $host_julia)")
+            println("    Fix: install a matching Julia on $host, or pass --ignore-julia-version to continue anyway")
+            all_ok = false
+        elseif julia_check.mismatch_kind == :minor
+            warn("Julia version differs: local $(VERSION), $host has $(julia_check.version) (--ignore-julia-version)")
+        elseif julia_check.mismatch_kind == :patch
+            warn("Julia patch version differs: local $(VERSION), $host has $(julia_check.version)")
+        else
+            ok("Julia $(julia_check.version) found at $host_julia")
         end
         
         if check_project(host, remote_path)
@@ -311,7 +334,7 @@ function deploy(hosts::Vector{String}, remote_path::String; do_push::Bool=true, 
     return true
 end
 
-function parse_args(args)
+function parse_setup_args(args)
     mode = nothing
     do_push = true
     do_pull = true
@@ -320,6 +343,7 @@ function parse_args(args)
     remote_path_override = nothing
     hosts = String[]
     show_help = false
+    ignore_julia_version = false
     
     i = 1
     while i <= length(args)
@@ -346,6 +370,9 @@ function parse_args(args)
         elseif arg == "--delete"
             mode = :delete
             i += 1
+        elseif arg == "--rsync"
+            mode = :rsync_push
+            i += 1
         elseif arg == "--requirements"
             mode = :requirements
             i += 1
@@ -358,6 +385,9 @@ function parse_args(args)
         elseif (arg == "--remote-path" || arg == "--remote-dir") && i < length(args)
             remote_path_override = String(strip(args[i+1]))
             i += 2
+        elseif arg == "--ignore-julia-version"
+            ignore_julia_version = true
+            i += 1
         elseif arg == "-h" || arg == "--help"
             show_help = true
             i += 1
@@ -375,7 +405,8 @@ function parse_args(args)
         repo_url=repo_url,
         remote_path_override=remote_path_override,
         hosts=hosts,
-        show_help=show_help
+        show_help=show_help,
+        ignore_julia_version=ignore_julia_version
     )
 end
 
@@ -395,6 +426,7 @@ Commands:
   --check         Check prerequisites on specified hosts
   --pull          Pull latest code on all hosts
   --sync          Push + pull (for development team)
+  --rsync         rsync local tree to hosts, bypassing git (no commit/hash check; see --help)
   --instantiate   Run Pkg.instantiate on remote hosts
   --cleanup       Kill stale Julia worker processes on localhost + remote hosts
 
@@ -403,6 +435,7 @@ Options:
   --remote-path PATH  Repo root on remotes (default: ~/Parent/Name, or
                       \$DISTRIBUTED_REMOTE_PROJECT_ROOT). Alias: --remote-dir
   --julia PATH        Julia path for remote hosts (default: \$JULIA_DISTRIBUTED_EXE or auto-detect)
+  --ignore-julia-version  Don't fail --check on a major.minor Julia version mismatch (still warns)
   -h, --help          Show this help
 
 Environment:
@@ -414,6 +447,14 @@ Environment:
 Arguments:
   hosts...        Remote hosts (user@host format)
 
+About --rsync:
+  Copies the local working tree to each host via rsync (excludes .git/, honors
+  .gitignore, mirrors deletions). Does NOT commit, push, pull, or touch git on
+  either side — use it only for quick manual iteration before you're ready to
+  commit. Afterwards, local/remote git commits will likely disagree, so
+  `runner`'s git hash check will warn/fail unless you pass --skip-hash-check.
+  Prefer --sync when you want the git-commit reproducibility guarantee.
+
 Examples:
   julia --project=. -m DistSSHKit setup
   julia --project=. -m DistSSHKit setup --clone host1 host2
@@ -421,6 +462,7 @@ Examples:
   julia --project=. -m DistSSHKit setup --remote-path ~/work/App.jl --clone host1 host2
   julia --project=. -m DistSSHKit setup --check host1 host2
   julia --project=. -m DistSSHKit setup --pull host1 host2
+  julia --project=. -m DistSSHKit setup --rsync host1 host2
   julia --project=. -m DistSSHKit setup --instantiate host1 host2
   julia --project=. -m DistSSHKit setup --cleanup host1 host2
 """)
@@ -438,6 +480,81 @@ function resolve_clone_url(repo_override::Union{Nothing,String})
     url = clone_url_from_local_origin(String(PROJECT_ROOT))
     url === nothing && error("Could not read git remote `origin`; pass --repo URL")
     return url
+end
+
+"""
+rsync the local project tree to each host, bypassing git entirely (no commit,
+no push/pull, no hash verification). Excludes `.git/`, honors `.gitignore`
+(via rsync's per-directory filter merge — gitignored files are also protected
+from `--delete`), and mirrors deletions (`--delete`) so files removed locally
+are removed remotely too.
+
+This exists for quick manual iteration when you don't want to commit yet. It
+deliberately does **not** touch git state on either side, so after this the
+local and remote git commits will very likely disagree — `runner`'s git hash
+check will warn/fail unless you pass `--skip-hash-check`. Prefer `setup --sync`
+when you want the reproducibility guarantee (git commit parity) that the rest
+of this tool is built around.
+
+Returns `true` if the user confirmed (regardless of per-host success — see the
+per-host ✓/✗ output for that), `false` if cancelled. Matches the confirm/return
+convention of `delete_remotes`.
+"""
+function rsync_push_to_remotes(hosts::Vector{String}, remote_path::String)::Bool
+    print("  ")
+    print_warn("This bypasses git entirely: no commit, no push/pull, no hash check.")
+    println()
+    println("  Local and remote git commits will likely disagree afterwards.")
+    println("  `runner` will then warn/fail its git hash check unless you pass --skip-hash-check.")
+    println("  Prefer `setup --sync` when you need the git-commit reproducibility guarantee.")
+    println()
+    println("  Local project: $(_local_project_disp())")
+    println("  Remote path: $remote_path")
+    println("  Hosts: $(join(hosts, ", "))")
+    println()
+    print("Type 'rsync' to confirm: ")
+    flush(stdout)
+    answer = strip(readline())
+    if answer != "rsync"
+        println("Cancelled.")
+        return false
+    end
+    println()
+
+    local_root = String(abspath(expanduser(String(PROJECT_ROOT))))
+    ssh_cmd_str = "ssh " * join(SSH_OPTS, " ")
+    for host in hosts
+        print("  $host: ")
+        flush(stdout)
+        try
+            if !success(pipeline(
+                    Cmd(["ssh", SSH_OPTS..., host, "test", "-d", remote_path]);
+                    stderr=devnull, stdout=devnull,
+                ))
+                print_warn("skipped (no directory on host; run --clone first)")
+                println()
+                continue
+            end
+            rsync_cmd = Cmd(String[
+                "rsync", "-az", "--delete",
+                "-e", ssh_cmd_str,
+                "--exclude", ".git/",
+                "--filter", ":- .gitignore",
+                local_root * "/",
+                string(host, ":", remote_path, "/"),
+            ])
+            run(pipeline(rsync_cmd; stderr=stderr))
+            print_ok("✓")
+            println()
+        catch e
+            print_err("✗ $(sprint(showerror, e))")
+            println()
+        end
+    end
+    println()
+    writeln_both("Reminder: local/remote git commits are not tracked by this operation.")
+    writeln_both("Skip runner's git hash check with --skip-hash-check when running against these hosts.")
+    return true
 end
 
 """Delete remote repositories. Returns true if delete ran, false if cancelled."""
@@ -595,7 +712,7 @@ function instantiate_remotes(hosts::Vector{String}, julia_path::String, remote_p
 end
 
 function setup_main()
-    opts = parse_args(ARGS)
+    opts = parse_setup_args(ARGS)
     
     if opts.show_help
         show_usage()
@@ -620,7 +737,7 @@ function setup_main()
         cli_override=opts.remote_path_override,
     )
     
-    mode_name = Dict(:clone => "Clone", :delete => "Delete", :check => "Check Prerequisites", :pull => "Pull", :sync => "Sync", :instantiate => "Instantiate", :cleanup => "Cleanup Workers")[opts.mode]
+    mode_name = Dict(:clone => "Clone", :delete => "Delete", :check => "Check Prerequisites", :pull => "Pull", :sync => "Sync", :rsync_push => "rsync (no git)", :instantiate => "Instantiate", :cleanup => "Cleanup Workers")[opts.mode]
     print_header(mode_name)
     println()
     writeln_both("Remote project path: $remote_path")
@@ -646,6 +763,16 @@ function setup_main()
         if opts.remote_path_override !== nothing || !isempty(strip(get(ENV, "DISTRIBUTED_REMOTE_PROJECT_ROOT", "")))
             println("  Tip: export DISTRIBUTED_REMOTE_PROJECT_ROOT=$remote_path")
             println("       so runner.jl uses the same remote root for workers / collect.")
+            println()
+        end
+        return
+    end
+
+    # Handle rsync mode separately (bypasses git entirely; see rsync_push_to_remotes docstring)
+    if opts.mode == :rsync_push
+        if rsync_push_to_remotes(opts.hosts, remote_path)
+            println()
+            print_ok("rsync complete.")
             println()
         end
         return
@@ -677,6 +804,7 @@ function setup_main()
     result = check_prerequisites(
         opts.hosts, opts.julia_path, remote_path;
         require_clean_git=require_clean, check_code_sync=check_code_sync,
+        ignore_julia_version=opts.ignore_julia_version,
     )
     
     if !result.ok

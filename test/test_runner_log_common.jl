@@ -16,6 +16,8 @@ function _assert_runner_log_output(; cmd::Cmd, log_dir::String)
     log_content = read(joinpath(log_dir, only(log_files)), String)
 
     for needle in (
+        "Subcommand args: runner",
+        "Julia binary:",
         "Script:",
         "Workers:",
         "Running script...",

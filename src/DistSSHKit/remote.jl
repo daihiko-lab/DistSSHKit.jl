@@ -20,6 +20,31 @@ end
 
 const SSH_OPTS = build_ssh_opts()
 
+"""Parse `julia --version` output (e.g. `"julia version 1.12.6"`) into a `VersionNumber`.
+Returns `nothing` if the text doesn't match the expected pattern."""
+function parse_julia_version(version_output::AbstractString)::Union{Nothing,VersionNumber}
+    m = match(r"julia version (\d+\.\d+\.\d+)", String(version_output))
+    m === nothing && return nothing
+    cap = m.captures[1]
+    cap isa AbstractString || return nothing
+    try
+        return VersionNumber(String(cap))
+    catch
+        return nothing
+    end
+end
+
+"""Get the Julia version on a remote host by running `julia_path --version` over SSH.
+Returns `nothing` on any failure (SSH, missing binary, unparseable output)."""
+function get_remote_julia_version(host::String, julia_path::AbstractString)::Union{Nothing,VersionNumber}
+    try
+        result = read(pipeline(Cmd(["ssh", SSH_OPTS..., host, String(julia_path), "--version"]); stderr=devnull), String)
+        return parse_julia_version(result)
+    catch
+        return nothing
+    end
+end
+
 """Detect Julia path on remote host via SSH."""
 function detect_julia_path(host::String)
     common_paths = [
@@ -63,6 +88,20 @@ function get_local_git_hash(proj_dir::AbstractString; short::Union{Nothing,Int}=
         return isempty(s) ? nothing : s
     catch
         return nothing
+    end
+end
+
+"""Whether the local git working tree at `proj_dir` is clean (no uncommitted changes).
+Returns `true` if clean, if `proj_dir` is not a git repo, or if `git` itself fails —
+this check exists to warn, not to block, so failures to determine status don't count
+as "dirty"."""
+function local_git_clean(proj_dir::AbstractString)::Bool
+    resolved = abspath(expanduser(String(proj_dir)))
+    try
+        result = read(pipeline(Cmd(["git", "-C", resolved, "status", "--porcelain"]); stderr=devnull), String)
+        return isempty(strip(result))
+    catch
+        return true
     end
 end
 

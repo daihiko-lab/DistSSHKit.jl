@@ -232,18 +232,27 @@ using Test
         @test String(take!(primary)) == "hello\n"
     end
 
-    # -- get_local_git_hash / clone_url_from_local_origin ----------------------
+    # -- get_local_git_hash / clone_url_from_local_origin / local_git_clean ----
     mktempdir() do tmp
         d = abspath(string(tmp))
         @test DistSSHKit.get_local_git_hash(d) === nothing
         @test DistSSHKit.clone_url_from_local_origin(d) === nothing
+        @test DistSSHKit.local_git_clean(d) == true  # not a git repo: don't block
 
         run(Cmd(["git", "-C", d, "init", "-q"]))
         run(Cmd(["git", "-C", d, "config", "user.email", "test@example.com"]))
         run(Cmd(["git", "-C", d, "config", "user.name", "Test"]))
+        @test DistSSHKit.local_git_clean(d) == true  # empty repo, no changes yet
+
         write(joinpath(d, "f.txt"), "hi")
+        @test DistSSHKit.local_git_clean(d) == false  # untracked file present
+
         run(Cmd(["git", "-C", d, "add", "f.txt"]))
         run(Cmd(["git", "-C", d, "commit", "-q", "-m", "init"]))
+        @test DistSSHKit.local_git_clean(d) == true  # committed, tree clean
+
+        write(joinpath(d, "f.txt"), "hi2")
+        @test DistSSHKit.local_git_clean(d) == false  # modified, uncommitted
 
         full = DistSSHKit.get_local_git_hash(d)
         @test full isa String
@@ -255,6 +264,30 @@ using Test
 
         run(Cmd(["git", "-C", d, "remote", "add", "origin", "https://github.com/org/App.jl.git"]))
         @test DistSSHKit.clone_url_from_local_origin(d) == "git@github.com:org/App.jl.git"
+    end
+
+    # -- parse_julia_version -------------------------------------------------
+    @test DistSSHKit.parse_julia_version("julia version 1.12.6") == v"1.12.6"
+    @test DistSSHKit.parse_julia_version("julia version 1.9.0-DEV") == v"1.9.0"
+    @test DistSSHKit.parse_julia_version("julia version 1.13.0-beta1") == v"1.13.0"
+    @test DistSSHKit.parse_julia_version("") === nothing
+    @test DistSSHKit.parse_julia_version("not julia at all") === nothing
+
+    # -- get_remote_julia_version (SSH failure paths only; no network in CI) --
+    @test DistSSHKit.get_remote_julia_version("no-such-host.invalid", "/usr/bin/julia") === nothing
+
+    # -- subcommand_args_record / julia_env_record ---------------------------
+    @test DistSSHKit.subcommand_args_record("runner", ["--local", "2", "script.jl"]) ==
+        "runner --local 2 script.jl"
+    @test DistSSHKit.subcommand_args_record("runner", ["a b", "c\$d"]) ==
+        Base.shell_escape("runner", "a b", "c\$d")
+
+    let rec = DistSSHKit.julia_env_record()
+        labels = first.(rec)
+        @test "Julia binary" in labels
+        # `Project` and `Threads` are only present when determinable from this
+        # process's actual launch options; not asserted here since that varies
+        # by how the test runner itself was launched (e.g. under `Pkg.test()`).
     end
 
     # -- CLI script bridge (_run_kit_cli_script; backs `runner()`/`(@main)`) --

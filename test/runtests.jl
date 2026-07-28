@@ -21,6 +21,7 @@ const _TEST_FILES = (
     "test_demo_cli.jl",
     "test_host_project_toml.jl",
     "test_runner_args.jl",
+    "test_setup.jl",
     "test_runner_smoke.jl",
     "test_runner_log_script.jl",
     "test_runner_log_module.jl",
