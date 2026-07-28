@@ -218,6 +218,38 @@ function Base.flush(io::TeeIO)
     nothing
 end
 
+"""
+Shell-quoted (but not fully reconstructable) record of the args passed to the
+current subcommand — e.g. `"runner --local 2 host1:4 --skip-hash-check script.jl arg1"`.
+
+Does not include the `julia`/`-m DistSSHKit` prefix; only states what we know for
+certain (the exact `ARGS` this subcommand received), not a claim of full
+reproducibility.
+"""
+subcommand_args_record(subcommand::AbstractString, args::Vector{String})::String =
+    Base.shell_escape(String(subcommand), args...)
+
+"""
+Best-effort, explicitly-partial record of the current process's Julia environment
+(`Julia binary`, `Project`, `Threads`) as label => value pairs. Omits fields that
+cannot be determined confidently. Not a reconstructable command — see
+`subcommand_args_record` for the part that is exact.
+"""
+function julia_env_record()::Vector{Pair{String,String}}
+    opts = Base.JLOptions()
+    out = Pair{String,String}[]
+    bin = opts.julia_bin == C_NULL ? nothing : unsafe_string(opts.julia_bin)
+    bin === nothing || push!(out, "Julia binary" => bin)
+    proj = opts.project == C_NULL ? "" : unsafe_string(opts.project)
+    isempty(proj) || push!(out, "Project" => proj)
+    # `opts.nthreads` includes the auto-added interactive pool; we report only the
+    # default-pool count (`Threads.nthreads()`) and say plainly that the
+    # interactive-pool count (the `M` in `-t N,M`) is not recorded.
+    opts.nthreads == 0 ||
+        push!(out, "Threads" => "$(Threads.nthreads()) (default pool; interactive pool not recorded)")
+    return out
+end
+
 print_separator(; width::Int=OUTPUT_WIDTH) = writeln_both("="^width)
 print_header(title::String) = (print_separator(); writeln_both(title); print_separator())
 

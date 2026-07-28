@@ -161,7 +161,7 @@ Options:
   -l, --local N       Number of local worker processes (default: 0)
   -w, --workers N     Default workers for remote hosts without explicit count
   --julia PATH        Julia path for remote hosts (default: auto = detect common paths)
-  --skip-hash-check   Skip git hash verification between local and remote hosts
+  --skip-hash-check   Skip local dirty-tree warning and git hash verification vs. remote hosts
   --no-log            Do not write console output to a log file
   --log-dir PATH      Log output directory (default: script's output dir, or <script_dir>/results)
   --package NAME      `using NAME` on workers (overrides package name from Project.toml)
@@ -212,6 +212,6 @@ Environment:
 Prerequisites:
   - SSH key authentication to remote hosts
   - Same project layout relative to repo root on workers (or set DISTRIBUTED_REMOTE_PROJECT_ROOT)
-  - Same git commit on all machines (checked automatically, use --skip-hash-check to override)
+  - Same git commit on all machines, and a clean local working tree (both checked automatically, use --skip-hash-check to override)
 """
 end

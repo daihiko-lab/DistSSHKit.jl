@@ -10,7 +10,7 @@ NOTE: This uses Distributed.jl (multi-process), not multi-threading.
       - For multi-threading within a single process, use Julia's -t option directly
 
 Workflow:
-  1. Verify git hash matches across all hosts (skip with --skip-hash-check)
+  1. Check local git status (dirty working tree) and hash match across all hosts (skip with --skip-hash-check)
   2. Clean up stale worker processes (local + remote)
   3. Check memory capacity (after cleanup for accurate readings)
   4. Add local/remote worker processes
@@ -36,7 +36,7 @@ Options:
   -l, --local N         Number of local worker processes to add (default: 0)
   -w, --workers N       Default worker count for hosts without explicit :N
   --julia PATH          Julia executable path for remote hosts (default: auto-detect)
-  --skip-hash-check     Skip git commit verification (not recommended)
+  --skip-hash-check     Skip local dirty-tree warning and git commit verification (not recommended)
   --no-log              Do not write console output to a log file
   --log-dir PATH        Log output directory (default: script's output dir, or <script_dir>/results)
   --package NAME        Load this module on workers instead of `name` from Project.toml
@@ -59,7 +59,7 @@ Environment variables:
 Prerequisites:
   - SSH key authentication to all remote hosts
   - Same project path on all machines (e.g., ~/projects/MyModel.jl)
-  - Same git commit (checked automatically)
+  - Same git commit, and a clean local working tree (checked automatically)
   - Julia installed on remote hosts (auto-detected in common locations)
 
 Example (full workflow):
@@ -97,6 +97,7 @@ include(joinpath(@__DIR__, "runner", "results.jl"))
 show_help() = println(runner_help_text())
 
 function runner_main()::Cint
+    original_args = copy(ARGS)
     parsed = parse_runner_args(ARGS)
 
     if parsed.help
@@ -168,6 +169,12 @@ function runner_main()::Cint
         atexit(close_log_file)
     end
 
+    writeln_both("Subcommand args: $(subcommand_args_record("runner", original_args))")
+    for (label, value) in julia_env_record()
+        writeln_both("$(label): $(value)")
+    end
+    writeln_both("")
+
     print_header("Distributed Runner")
     writeln_both("")
     writeln_both("Script: $(display_path(script_path, root_disp))")
@@ -181,11 +188,19 @@ function runner_main()::Cint
     writeln_both("Application git (project dir): $(app_git === nothing ? "unavailable" : app_git)")
     writeln_both("")
 
-    if !isempty(host_names)
-        if skip_hash_check
-            writeln_both("Git hash check: skipped (--skip-hash-check)")
+    if skip_hash_check
+        writeln_both("Git checks: skipped (--skip-hash-check)")
+        writeln_both("")
+    else
+        if !local_git_clean(proj_dir)
+            write_both("  ")
+            print_warn("⚠ Local working tree has uncommitted changes (this run may not match any git commit)")
             writeln_both("")
-        else
+            writeln_both("  Skip this check with --skip-hash-check")
+            writeln_both("")
+        end
+
+        if !isempty(host_names)
             writeln_both("Checking git hashes...")
             ok, mismatches = check_git_hashes(host_names, PROJECT_ROOT)
             writeln_both("")

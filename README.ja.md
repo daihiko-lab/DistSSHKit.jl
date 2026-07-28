@@ -119,7 +119,7 @@ SSH のオプションを変えたいときだけ `DISTRIBUTED_SSH_OPTS` を使�
 export DISTRIBUTED_SSH_OPTS="-o ProxyJump=bastion ..."
 ```
 
-リモート側には Julia が必要 (未指定なら自動検出。`--julia PATH` または `JULIA_DISTRIBUTED_EXE` でも指定できる)。`setup --clone` / `--sync` を使うなら、各ホストから `origin` へ SSH で clone/pull できること。実行時は全ホストで同じ git コミットになっているかを runner が自動で確認する。
+リモート側には Julia が必要 (未指定なら自動検出。`--julia PATH` または `JULIA_DISTRIBUTED_EXE` でも指定できる)。`setup --clone` / `--sync` を使うなら、各ホストから `origin` へ SSH で clone/pull できること。実行時は全ホストで同じ git コミットになっているかを runner が自動で確認し、ローカルの作業ツリーに未コミットの変更があれば警告する (両方とも `--skip-hash-check` でスキップ可能)。また `setup --check` は各ホストの Julia バージョンがローカルと一致しているかも確認する (メジャー.マイナーの不一致は失敗扱い。`--ignore-julia-version` を渡すと警告に格下げできる。パッチのみの差異は常に警告のみ)。
 
 パスまわりでよく使う変数:
 
@@ -150,6 +150,8 @@ julia --project=. -m DistSSHKit setup --check HOST ...
 # 4. 手元の git コミットに各ホストを揃える (以降、実行のたびにも使う)
 julia --project=. -m DistSSHKit setup --sync HOST ...
 ```
+
+コミットする前に手早く試したいときは、`setup --rsync HOST ...` で git を経由せず rsync だけでツリーをコピーできる。ただし commit も hash 検証も一切行わないため、`--skip-hash-check` なしでは `runner` の git チェックが警告/失敗する可能性が高い。git コミットでの再現性保証がほしい場合は `--sync` を使うこと。
 
 ## トラブルシューティング
 

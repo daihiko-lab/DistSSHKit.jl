@@ -119,7 +119,7 @@ To override SSH behavior, set `DISTRIBUTED_SSH_OPTS` (if unset, defaults apply: 
 export DISTRIBUTED_SSH_OPTS="-o ProxyJump=bastion ..."
 ```
 
-Each remote host needs Julia installed (auto-detected unless you pass `--julia PATH` or `JULIA_DISTRIBUTED_EXE`). For `setup --clone` / `--sync`, each host must reach `origin` over SSH (clone/pull). At run time, `runner` automatically checks that all hosts are on the same git commit.
+Each remote host needs Julia installed (auto-detected unless you pass `--julia PATH` or `JULIA_DISTRIBUTED_EXE`). For `setup --clone` / `--sync`, each host must reach `origin` over SSH (clone/pull). At run time, `runner` automatically checks that all hosts are on the same git commit, and warns if your local working tree has uncommitted changes (both checks are skipped with `--skip-hash-check`). `setup --check` additionally verifies that each host's Julia version matches yours (a major.minor mismatch fails the check; pass `--ignore-julia-version` to downgrade that to a warning; a patch-only difference always just warns).
 
 Path-related variables you'll likely need:
 
@@ -150,6 +150,8 @@ julia --project=. -m DistSSHKit setup --check HOST ...
 # 4. Align each host to your local git commit (also used before every run)
 julia --project=. -m DistSSHKit setup --sync HOST ...
 ```
+
+For quick manual iteration before you're ready to commit, `setup --rsync HOST ...` copies the local tree via rsync instead — but it bypasses git entirely (no commit, no hash verification), so `runner`'s git checks will likely warn/fail against it unless you pass `--skip-hash-check`. Prefer `--sync` whenever you want the git-commit reproducibility guarantee.
 
 ## Troubleshooting
 

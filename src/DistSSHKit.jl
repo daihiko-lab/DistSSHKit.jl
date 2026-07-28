@@ -23,17 +23,17 @@ module DistSSHKit
 
 using Dates
 
-export LOG_FILE_HANDLE, OUTPUT_WIDTH, SSH_OPTS, DIST_SSH_KIT_VERSION, TeeIO
+export DIST_SSH_KIT_VERSION, LOG_FILE_HANDLE, OUTPUT_WIDTH, SSH_OPTS, TeeIO
 export build_ssh_opts, clone_url_from_local_origin
 export close_log_file, collect_tree_remote_files_ssh, default_remote_project_path, detect_julia_path
 export display_path, distributed_collect_root_dirs, fail, get_local_git_hash, get_local_resources
-export get_remote_git_hash, get_remote_nproc, get_remote_total_gb, init_log_file
-export normalize_git_clone_url, ok, dist_ssh_kit_version
+export get_remote_git_hash, get_remote_julia_version, get_remote_nproc, get_remote_total_gb, init_log_file
+export dist_ssh_kit_version, local_git_clean, normalize_git_clone_url, ok
 export print_err, print_header, print_info, print_ok, print_separator, print_warn
 export demo_script, demos_dir, install_demos, list_demos
-export project_package_name, remote_path_for_ssh_collect, resolve_pkg_project_dir
+export julia_env_record, project_package_name, remote_path_for_ssh_collect, resolve_pkg_project_dir
 export runner_kit_project_root
-export resolve_remote_project_root, short_path, use_colors, warn
+export resolve_remote_project_root, short_path, subcommand_args_record, use_colors, warn
 export write_both, writeln_both
 
 # =============================================================================
@@ -98,12 +98,10 @@ const _KIT_CLI_MAIN = Dict(
 function _kit_cli_run_entry(script_base::String)::Cint
     sym = get(_KIT_CLI_MAIN, script_base, nothing)
     sym === nothing && return 0
-    fn = getfield(Main, sym)
-    if script_base == "runner.jl"
-        return Base.invokelatest(fn)
+    return Base.invokelatest() do
+        result = getfield(Main, sym)()
+        return result isa Cint ? result : 0
     end
-    Base.invokelatest(fn)
-    return 0
 end
 
 """Run a kit CLI script in `src/` (`runner.jl`, `setup.jl`, …) with `ARGS` set."""
