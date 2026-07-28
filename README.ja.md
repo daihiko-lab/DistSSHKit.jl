@@ -11,7 +11,8 @@
 
 English: [README.md](README.md)
 
-**状態:** `0.x` (1.0 未満)。新規利用は [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) の最新タグを `rev` に指定する。git/Julia チェックと試行錯誤 vs 本番の運用方針は揃っている。インターフェースはまだ変わる可能性がある。
+> [!NOTE]
+> **開発中:** インターフェースはまだ変わる可能性がある。新規利用は [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) の最新タグを `rev` に指定する。
 
 リモートホストを使う場合は、手順の前に [リモートホストを使う](#リモートホストを使う) を読むこと。生成AIの利用については [生成AIを用いた開発](#生成aiを用いた開発) を参照。
 
