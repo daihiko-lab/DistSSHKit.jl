@@ -1,7 +1,7 @@
 using Test
 
 @testset "setup.jl" begin
-    isdefined(Main, :parse_setup_args) || include(joinpath(@__DIR__, "..", "src", "Setup.jl"))
+    isdefined(Main, :parse_setup_args) || include(joinpath(@__DIR__, "..", "src", "setup.jl"))
 
     # -- julia_version_mismatch_kind ----------------------------------------
     @test julia_version_mismatch_kind(v"1.12.6", v"1.12.6") == :none

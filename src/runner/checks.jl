@@ -1,5 +1,5 @@
 using .DistSSHKit: get_local_git_hash, get_remote_git_hash, get_remote_total_gb,
-    local_git_clean, print_err, print_ok, print_warn, write_both, writeln_both
+    print_err, print_ok, print_warn, write_both, writeln_both
 
 # Runner-only preflight checks (git parity, memory capacity).
 

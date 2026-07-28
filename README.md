@@ -97,7 +97,7 @@ function main()
 end
 ```
 
-Runnable examples: [`demos/`](demos/) (parameter sweep, coin flips).
+Runnable examples: [`demos/`](demos/) (parameter sweep, coin flips). To copy one into your own project to read and edit, use `demo install` (see [Install and run](#install-and-run)).
 
 `runner()` runs `using Distributed` before it `include`s your script, so you don't need `using Distributed` yourself just to call `pmap`, etc. (worth adding anyway if you also run or test the script standalone).
 
@@ -152,6 +152,12 @@ julia --project=. -m DistSSHKit setup --sync HOST ...
 ```
 
 For quick manual iteration before you're ready to commit, `setup --rsync HOST ...` copies the local tree via rsync instead — but it bypasses git entirely (no commit, no hash verification), so `runner`'s git checks will likely warn/fail against it unless you pass `--skip-hash-check`. Prefer `--sync` whenever you want the git-commit reproducibility guarantee.
+
+### Recommended workflow: iterate vs. production runs
+
+- **Iterating** (still editing your script): `setup --rsync` + `runner --skip-hash-check` is fine. Faster feedback loop; git parity isn't the point yet.
+- **Before a production run**: commit, then `setup --sync HOST ...` followed by `setup --check HOST ...` with no warnings left. Don't run with `--skip-hash-check` for a run you intend to keep. `setup --check` only fails on a major.minor mismatch — a patch-only difference (e.g. 1.12.6 vs 1.12.9) just warns — so before a result you plan to keep or publish, pin all hosts to the same patch (e.g. `juliaup default 1.12.6`) and confirm the check comes back clean.
+- **Recording results**: keep the `runner` log (`results/runner_*.log`) alongside your output — it already records the exact subcommand args and a best-effort snapshot of the Julia environment (see log header).
 
 ## Troubleshooting
 
