@@ -12,7 +12,7 @@ Run any Julia script across local and SSH remote worker processes (Distributed.j
 日本語: [README.ja.md](README.ja.md)
 
 > [!NOTE]
-> **Under active development:** Interfaces may still change. For new use, pin the latest tag from [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) as `rev`.
+> **Under active development:** Interfaces may still change. For new use, pin the latest tag from [Releases](https://github.com/daihiko-lab/DistSSHKit.jl/releases) as `rev`. For now, the latest tag itself is moved forward to the newest commit; if you need exact reproducibility, pin a commit hash instead of the tag name.
 
 If you use remote hosts, read [Using remote hosts](#using-remote-hosts) before the workflows below. For generative-AI use in this repo, see [Development with generative AI](#development-with-generative-ai).
 
@@ -168,35 +168,13 @@ For quick manual iteration before you're ready to commit, `setup --rsync HOST ..
 - **Julia not found on remote**: `--julia PATH` or `JULIA_DISTRIBUTED_EXE`
 - **Anything else**: `--help` on each subcommand; [Using remote hosts](#using-remote-hosts)
 
-## For kit developers: develop via `Pkg.develop`
+## For developers
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for what to check before opening a PR.
-
-If you're editing the kit's own code while testing it (not needed for regular use), clone it anywhere and point `Pkg.develop` at that path:
-
-```bash
-git clone https://github.com/daihiko-lab/DistSSHKit.jl.git ~/dev/DistSSHKit.jl
-cd MyProject.jl
-julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/DistSSHKit.jl"))'
-```
-
-Same call interface as `Pkg.add` (`julia -m DistSSHKit runner ...`, etc.). Edits in that checkout take effect immediately.
-
-### Local verification
-
-At minimum, run the test suite from the kit checkout root:
-
-```bash
-julia --project=. -e 'using Pkg; Pkg.test()'
-```
-
-See [CONTRIBUTING.md](CONTRIBUTING.md#before-opening-a-pr) for the full checklist (static analysis, manual smoke tests, remote-host verification) to run before opening a PR.
-
-`Pkg.add(url=..., rev=...)` and `Pkg.develop(path=...)` both make you explicitly choose the version's source of truth, unlike General Registry's automatic `[compat]`-driven resolution. That's a deliberate fit for research use (pin an exact commit, keep it reproducible).
+If you want to edit the kit's own code, or need the checklist to run before opening a PR, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Development with generative AI
 
-At this stage, maintainer review and understanding have not fully caught up everywhere. For a public `0.x` GitHub repo, we operate on that premise. Correctness in practice will be validated through use in other projects and research.
+This is still early-stage development, so maintainer review and understanding have not fully caught up everywhere. Correctness in practice will be validated through use in other projects and research.
 
 The Julia community discusses the line between unreviewed vibe-coding and human-understood AI-assisted work (e.g. [Discourse thread](https://discourse.julialang.org/t/should-general-have-a-guideline-or-rule-preventing-registration-of-vibe-coded-packages/133205), [General policy](https://github.com/JuliaRegistries/General/blob/master/README.md)). This repository takes those discussions as reference.
 

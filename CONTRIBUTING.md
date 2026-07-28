@@ -2,7 +2,7 @@
 
 日本語版: [CONTRIBUTING.ja.md](CONTRIBUTING.ja.md)
 
-For full development setup, see the ["For kit developers"](README.md#for-kit-developers-develop-via-pkgdevelop) section in the README. This document summarizes what to check before opening a PR.
+This document summarizes what to check before opening a PR. For end-user usage, see [README.md](README.md).
 
 ## Environment
 
@@ -12,17 +12,28 @@ Note: the implementation shells out to `ssh`/`rsync`/POSIX commands (e.g. `find`
 
 ## Setup
 
+If you're developing the kit on its own:
+
 ```bash
 git clone https://github.com/daihiko-lab/DistSSHKit.jl.git ~/dev/DistSSHKit.jl
 cd ~/dev/DistSSHKit.jl
 ```
 
-That's enough if you're developing the kit on its own. If you want to edit it while using it from another project, point `Pkg.develop(path=...)` at the clone (see README).
+If you want to edit the kit's code while using it from another project, clone it anywhere and point `Pkg.develop` at that path:
+
+```bash
+git clone https://github.com/daihiko-lab/DistSSHKit.jl.git ~/dev/DistSSHKit.jl
+cd MyProject.jl
+julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/DistSSHKit.jl"))'
+```
+
+Same call interface as `Pkg.add` (`julia -m DistSSHKit runner ...`, etc.). Edits in that checkout take effect immediately.
 
 ## Branching & commits
 
 - Don't push directly to `main` (branch protection rejects it). Open a PR from a branch like `feature/xxx`, `fix/xxx`, `docs/xxx`, `chore/xxx`
-- If your change is breaking (CLI subcommand names, module name, the driver contract `init_output_dir!`/`main`, etc.), bump the `x` in `Project.toml`'s `0.x.y` version. Patch (`y`) bumps are for non-breaking changes only (per Julia's SemVer convention, `x` acts as the effective major version while the package is `0.x`; see README for details)
+- If your change is breaking (CLI subcommand names, module name, the driver contract `init_output_dir!`/`main`, etc.), bump the `x` in `Project.toml`'s `0.x.y` version. Patch (`y`) bumps are for non-breaking changes only (per Julia's SemVer convention, `x` acts as the effective major version while the package is `0.x`)
+- `Pkg.add(url=..., rev=...)` and `Pkg.develop(path=...)` both make you explicitly choose the version's source of truth, unlike General Registry's automatic `[compat]`-driven resolution. That's a deliberate fit for research use (pin an exact commit, keep it reproducible)
 
 ## Before opening a PR
 

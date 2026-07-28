@@ -1,6 +1,6 @@
 # Contributing (日本語)
 
-開発の詳しい手順は [README.ja.md の「開発者向け」節](README.ja.md#開発者向け-pkgdevelop-でキットを編集する) を参照。ここでは PR を出す前に確認してほしい要点だけをまとめる。
+PR を出す前に確認してほしい要点をまとめる。利用者向けの使い方は [README.ja.md](README.ja.md) を参照。
 
 ## 動作環境
 
@@ -10,17 +10,28 @@
 
 ## セットアップ
 
+キット単体で開発する場合:
+
 ```bash
 git clone https://github.com/daihiko-lab/DistSSHKit.jl.git ~/dev/DistSSHKit.jl
 cd ~/dev/DistSSHKit.jl
 ```
 
-キット単体で開発する場合はこのままでよい。自分のプロジェクトから編集して試したい場合は `Pkg.develop(path=...)` で参照する (README 参照)。
+自分のプロジェクトから使いながらキットのコードを編集したい場合は、好きな場所に clone して `Pkg.develop` でそのパスを参照する:
+
+```bash
+git clone https://github.com/daihiko-lab/DistSSHKit.jl.git ~/dev/DistSSHKit.jl
+cd MyProject.jl
+julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/DistSSHKit.jl"))'
+```
+
+呼び出し方は `Pkg.add` の場合と同じ (`julia -m DistSSHKit runner ...` など)。この clone 先のファイルを直接編集すればすぐ反映される。
 
 ## ブランチ・コミット
 
 - `main` に直接 push しない (ブランチ保護で拒否される)。`feature/xxx`, `fix/xxx`, `docs/xxx`, `chore/xxx` のようなブランチを切って PR を出す
-- 破壊的変更 (CLI サブコマンド名、モジュール名、driver 契約 `init_output_dir!`/`main` など) を含む場合は、`Project.toml` の `version` の `0.x.y` の `x` を上げる。パッチ `y` は非破壊的変更のみ (Julia の SemVer 運用では `0.x` 系は `x` が事実上のメジャー番号として扱われる。詳細は README 参照)
+- 破壊的変更 (CLI サブコマンド名、モジュール名、driver 契約 `init_output_dir!`/`main` など) を含む場合は、`Project.toml` の `version` の `0.x.y` の `x` を上げる。パッチ `y` は非破壊的変更のみ (Julia の SemVer 運用では `0.x` 系は `x` が事実上のメジャー番号として扱われる)
+- `Pkg.add(url=..., rev=...)` と `Pkg.develop(path=...)` は、どちらも使うバージョンを自分ではっきり決める設計。Julia General Registry のように `[compat]` で自動的に新しいバージョンへ上がっていく仕組みは想定していない。研究用途では特定のコミットに固定して再現性を保ちたいことが多いため
 
 ## PR を出す前に
 
