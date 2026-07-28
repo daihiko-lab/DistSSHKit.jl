@@ -183,23 +183,13 @@ julia --project=. -e 'using Pkg; Pkg.develop(path=expanduser("~/dev/DistSSHKit.j
 
 ### ローカルでの検証
 
-キットの clone ルートで、だいたい次の順に確認する:
+最低限、キットの clone ルートでテストスイートを実行する:
 
 ```bash
-# 1. テスト (単体、runner スモーク、demo、ログ出力など)
 julia --project=. -e 'using Pkg; Pkg.test()'
-
-# 2. 静的解析 — `jetls` が PATH にあること (Pkg.Apps.add 後、.zshrc 等で `export PATH="$HOME/.julia/bin:$PATH"` など)
-jetls check demos/*.jl src/DistSSHKit.jl src/runner.jl src/setup.jl src/suggest_workers.jl test/*.jl test/fixtures/*.jl
-
-# 3. 手動スモーク (README クイックスタートと同じ)
-julia --project=. -m DistSSHKit runner --local 2 demos/param_sweep.jl
-julia --project=. -m DistSSHKit runner --local 2 demos/coin_flip.jl
 ```
 
-`Pkg.test()` は `test/test_demos.jl` (demo スクリプト自体) と `test/test_demo_cli.jl` (`demo install`/`demo list`) の両方を自動で回す。2–3 は push 前の追加確認。
-
-CI では [`CI.yml`](.github/workflows/CI.yml) と [`jetls.yml`](.github/workflows/jetls.yml) も走らせている。
+PR を出す前に確認すべき全チェック項目 (静的解析、手動スモーク、リモートホストでの検証など) は [CONTRIBUTING.ja.md](CONTRIBUTING.ja.md#pr-を出す前に) を参照。
 
 `Pkg.add(url=..., rev=...)` と `Pkg.develop(path=...)` は、どちらも使うバージョンを自分ではっきり決める設計。Julia General Registry のように `[compat]` で自動的に新しいバージョンへ上がっていく仕組みは想定していない。研究用途では特定のコミットに固定して再現性を保ちたいことが多いため。
 
