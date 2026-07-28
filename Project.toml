@@ -2,7 +2,7 @@ name = "DistSSHKit"
 repo = "https://github.com/daihiko-lab/DistSSHKit.jl.git"
 uuid = "73975722-9f85-4360-83b9-7c97efcd71a4"
 license = "MIT"
-version = "0.7.2"
+version = "0.7.3"
 authors = ["YAMAMOTO, Takanori <takanori.yamamoto.99@gmail.com>"]
 
 [deps]

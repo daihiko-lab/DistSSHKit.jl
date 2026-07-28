@@ -10,7 +10,7 @@ Run any Julia script across local and SSH remote worker processes (Distributed.j
 
 日本語: [README.ja.md](README.ja.md)
 
-**Status:** Pre-1.0 (`0.x`); use `rev="v0.7.2"` or later for new projects. Git/Julia checks and the iterate-vs-production workflow landed in `v0.7.2`. Interfaces may still change between minor versions.
+**Status:** Pre-1.0 (`0.x`); use `rev="v0.7.3"` or later for new projects. Git/Julia checks and the iterate-vs-production workflow landed in `v0.7.2`. Interfaces may still change between minor versions.
 
 If you use remote hosts, read [Using remote hosts](#using-remote-hosts) before the workflows below. For generative-AI use in this repo, see [Development with generative AI](#development-with-generative-ai).
 
